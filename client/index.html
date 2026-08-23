@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Instant theme detection — runs before JS/CSS to eliminate flash -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('dopik-theme');
+          var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.classList.add(theme);
+          document.documentElement.style.colorScheme = theme;
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      html { background: #ffffff; }
+      html.dark { background: #16181d; }
+
+      /* Skeleton shimmer */
+      @keyframes sk-shimmer {
+        0%   { background-position: -600px 0; }
+        100% { background-position: 600px 0; }
+      }
+      .sk {
+        border-radius: 6px;
+        animation: sk-shimmer 1.4s infinite linear;
+      }
+      html.dark .sk {
+        background: linear-gradient(90deg, #1f2229 25%, #2a2d38 50%, #1f2229 75%);
+        background-size: 600px 100%;
+      }
+      html:not(.dark) .sk {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 600px 100%;
+      }
+
+      /* Nav */
+      #sk-nav {
+        position: sticky; top: 0; z-index: 50;
+        height: 64px; display: flex; align-items: center;
+        padding: 0 24px; gap: 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      html.dark #sk-nav { background: #1f2229; }
+      html:not(.dark) #sk-nav { background: #ffffff; border-bottom: 1px solid #e5e7eb; }
+
+      #sk-logo { height: 36px; width: 36px; object-fit: contain; flex-shrink: 0; }
+      #sk-brand { font-weight: 900; font-size: 14px; letter-spacing: 0.2em; flex-shrink: 0; }
+      html.dark #sk-brand { color: #f5f5f5; }
+      html:not(.dark) #sk-brand { color: #0a1628; }
+
+      #sk-search {
+        flex: 1; max-width: 480px; height: 38px; border-radius: 20px;
+        border: none; margin: 0 auto;
+      }
+      html.dark #sk-search { background: #2a2d38; }
+      html:not(.dark) #sk-search { background: #f3f4f6; }
+
+      .sk-nav-pill { width: 64px; height: 20px; border-radius: 10px; flex-shrink: 0; }
+
+      /* Main content */
+      #sk-main { padding: 32px 24px; max-width: 1280px; margin: 0 auto; }
+
+      /* Hero */
+      #sk-hero { width: 100%; height: 320px; border-radius: 16px; margin-bottom: 40px; }
+
+      /* Category strip */
+      #sk-cats { display: flex; gap: 12px; margin-bottom: 40px; overflow: hidden; }
+      .sk-cat { width: 90px; height: 36px; border-radius: 18px; flex-shrink: 0; }
+
+      /* Product grid */
+      #sk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+      .sk-card { border-radius: 12px; overflow: hidden; }
+      .sk-card-img { width: 100%; height: 160px; }
+      .sk-card-body { padding: 12px; }
+      .sk-card-title { height: 14px; margin-bottom: 8px; border-radius: 4px; width: 80%; }
+      .sk-card-price { height: 18px; border-radius: 4px; width: 50%; }
+    </style>
+    <!-- Google Search Console Verification -->
+    <meta name="google-site-verification" content="HZMexTGNu2r654lO4ndFbX2gaHqrhkQv1GjPIFmurPo" />
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EBK5BTE9E0"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-EBK5BTE9E0');
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root">
+      <!-- Instant skeleton — replaced by React when JS loads -->
+      <nav id="sk-nav">
+        <img id="sk-logo" src="/dopik-logo.png" alt="Dopik" />
+        <span id="sk-brand">DOPIK</span>
+        <div id="sk-search"></div>
+        <div class="sk sk-nav-pill"></div>
+        <div class="sk sk-nav-pill"></div>
+      </nav>
+      <main id="sk-main">
+        <div id="sk-hero" class="sk"></div>
+        <div id="sk-cats">
+          <div class="sk sk-cat"></div>
+          <div class="sk sk-cat"></div>
+          <div class="sk sk-cat"></div>
+          <div class="sk sk-cat"></div>
+          <div class="sk sk-cat"></div>
+          <div class="sk sk-cat"></div>
+        </div>
+        <div id="sk-grid">
+          <div class="sk-card"><div class="sk sk-card-img"></div><div class="sk-card-body"><div class="sk sk-card-title"></div><div class="sk sk-card-price"></div></div></div>
+          <div class="sk-card"><div class="sk sk-card-img"></div><div class="sk-card-body"><div class="sk sk-card-title"></div><div class="sk sk-card-price"></div></div></div>
+          <div class="sk-card"><div class="sk sk-card-img"></div><div class="sk-card-body"><div class="sk sk-card-title"></div><div class="sk sk-card-price"></div></div></div>
+          <div class="sk-card"><div class="sk sk-card-img"></div><div class="sk-card-body"><div class="sk sk-card-title"></div><div class="sk sk-card-price"></div></div></div>
+          <div class="sk-card"><div class="sk sk-card-img"></div><div class="sk-card-body"><div class="sk sk-card-title"></div><div class="sk sk-card-price"></div></div></div>
+          <div class="sk-card"><div class="sk sk-card-img"></div><div class="sk-card-body"><div class="sk sk-card-title"></div><div class="sk sk-card-price"></div></div></div>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

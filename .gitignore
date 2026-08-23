@@ -1,0 +1,44 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Production/build output
+dist/
+
+# Logs
+*.log
+*.log.*
+logs/
+
+# Runtime
+.pm2/
+*.pid
+
+# User uploads
+uploads/
+
+# Backups
+*.dump
+*.sql
+*.tar.gz
+*.bundle
+backups/
+dopik-backups/
+dopik-backups-*/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Development/prompt artifacts
+attached_assets/Pasted-*.txt
+
+# Local backup copies
+*.backup-security
+*.backup-security-*

@@ -1,0 +1,239 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light Theme Palette - Premium Electronics (Reebelo-like) */
+  --background: 0 0% 100%;        /* Pure White */
+  --foreground: 220 13% 10%;     /* Dark Charcoal */
+
+  --card: 0 0% 98%;              /* Very Light Gray */
+  --card-foreground: 220 13% 10%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 13% 10%;
+
+  --primary: 215 100% 50%;       /* Reebelo Blue #0066FF */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 48 90% 55%;       /* Dopik Yellow */
+  --secondary-foreground: 220 13% 10%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 60%;
+
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+
+  --radius: 0.75rem;
+
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+.dark {
+  /* Dark Theme Palette - Premium Electronics */
+  --background: 220 13% 10%;     /* Dark Charcoal #16181D */
+  --foreground: 0 0% 98%;        /* White */
+
+  --card: 220 13% 14%;           /* Lighter Charcoal #1F2229 */
+  --card-foreground: 0 0% 98%;
+
+  --popover: 220 13% 14%;
+  --popover-foreground: 0 0% 98%;
+
+  --primary: 48 90% 55%;         /* Electric Yellow #F5CE33 */
+  --primary-foreground: 220 13% 10%;
+
+  --secondary: 215 100% 50%;     /* Tech Blue #0066FF */
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 220 13% 20%;
+  --muted-foreground: 215 15% 65%;
+
+  --accent: 220 13% 25%;
+  --accent-foreground: 0 0% 98%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 220 13% 20%;
+  --input: 220 13% 20%;
+  --ring: 48 90% 55%;
+}
+
+@layer base {
+  * {
+    @apply border-border transition-colors duration-300;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary selection:text-primary-foreground transition-colors duration-300;
+    font-family: var(--font-body);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply tracking-tight font-bold;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-white/70;
+  }
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-orange-400;
+  }
+  .glass-panel {
+    position: relative;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    background: hsl(var(--card) / 0.55);
+    /* Outer gradient border — bright top-left, fade to dark bottom-right */
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    box-shadow:
+      /* Bright inner top line */
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      /* Moderate inner left line */
+      inset 1px 0 0 rgba(255, 255, 255, 0.18),
+      /* Subtle inner bottom */
+      inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+      /* Depth / outer shadow */
+      0 8px 32px rgba(0, 0, 0, 0.22),
+      0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+}
+
+/* Gradient ring border — bright on top-left, near-invisible on bottom-right */
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.22) 30%,
+    rgba(255, 255, 255, 0.07) 60%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Inner surface shimmer — subtle top-left highlight inside the glass */
+.glass-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 40%,
+    transparent 65%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Swiper Navigation Customization */
+.swiper-button-next,
+.swiper-button-prev {
+  width: 20px !important;
+  height: 20px !important;
+  background: transparent;
+  color: hsl(var(--foreground) / 0.5) !important;
+  box-shadow: none;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.swiper-button-next:hover,
+.swiper-button-prev:hover {
+  background: transparent;
+  color: hsl(var(--foreground)) !important;
+  transform: scale(1.1);
+}
+
+.swiper-button-next:after,
+.swiper-button-prev:after {
+  font-size: 8px !important;
+  font-weight: 900;
+}
+
+.swiper-pagination-bullet-active {
+  background: hsl(var(--primary)) !important;
+}
+
+/* Hide scrollbars while keeping scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Custom global scrollbar ── */
+:root {
+  --sb-thumb: #0066FF;
+  --sb-thumb-hover: #0052cc;
+  --sb-track: rgba(0, 102, 255, 0.07);
+}
+.dark {
+  --sb-thumb: #F5CE33;
+  --sb-thumb-hover: #e6b800;
+  --sb-track: rgba(245, 206, 51, 0.07);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) var(--sb-track);
+}
+
+/* Webkit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--sb-track);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--sb-thumb);
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sb-thumb-hover);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 22s linear infinite;
+}
+
