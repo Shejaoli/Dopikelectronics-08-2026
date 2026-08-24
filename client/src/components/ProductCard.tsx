@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ShoppingCart, Star, Eye, GitCompare } from "lucide-react";
 import { Product } from "@shared/schema";
 import { motion } from "framer-motion";
@@ -28,6 +28,7 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
   const [showQuickView, setShowQuickView] = useState(false);
   const { addToCompare, removeFromCompare, isInCompare } = useCompare();
   const inCompare = isInCompare(product.id);
+  const [, setLocation] = useLocation();
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(price);
@@ -37,9 +38,24 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
   const hasDiscount = product.isHotDeal && discount > 0;
   const dealPrice = hasDiscount ? Math.round(product.price * (1 - discount / 100)) : product.price;
 
-  const whatsappUrl = `https://wa.me/250783562143?text=${encodeURIComponent(
-    `Hello DOPIK, I am interested in buying ${product.name} for ${formatPrice(dealPrice)}`
-  )}`;
+  const handleBuyNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const cartItem = {
+      productId: product.id,
+      name: product.name,
+      price: dealPrice,
+      totalPrice: dealPrice,
+      quantity: 1,
+      storage: "",
+      color: "",
+      imageUrl: product.imageUrl,
+    };
+    // Buy Now takes this single item straight to checkout (replaces cart, matching "buy now" intent)
+    localStorage.setItem("cart", JSON.stringify([cartItem]));
+    window.dispatchEvent(new Event("storage"));
+    setLocation("/checkout");
+  };
 
   return (
     <>
@@ -167,17 +183,16 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
           </div>
 
           {/* Buy button — always at bottom, always shows icon + text */}
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={handleBuyNow}
             className="mt-2 flex items-center justify-center gap-1.5 w-full rounded-lg border border-primary/30 bg-primary/8 hover:bg-primary text-primary hover:text-primary-foreground py-1.5 text-[10px] sm:text-[11px] font-bold transition-all active:scale-95"
             data-testid={`button-cart-${product.id}`}
-            title="Order on WhatsApp"
+            title="Buy Now"
           >
             <ShoppingCart className="h-3 w-3 shrink-0" />
             <span>Buy</span>
-          </a>
+          </button>
         </div>
       </motion.div>
     </>
