@@ -3,7 +3,6 @@ import { useProduct, useProducts, useProductBySlug } from "@/hooks/use-products"
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
-import { CheckoutModal } from "@/components/CheckoutModal";
 import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +28,6 @@ export default function ProductDetails() {
   const byId = useProduct(isSlugBased ? 0 : numericId);
 
   const { data: product, isLoading, error } = isSlugBased ? bySlug : byId;
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const variations = (product?.variations as {
     storage?: { option: string; priceOffset: number; stock?: number }[];
@@ -181,6 +179,21 @@ export default function ProductDetails() {
     setLocation("/cart");
   };
 
+  const handleBuyNow = () => {
+    const currentPriceOffset = currentStorage?.priceOffset || 0;
+    const itemTotalPrice = (product.price + currentPriceOffset) * quantity;
+    const cartItem = {
+      productId: product.id, name: product.name,
+      price: itemTotalPrice / quantity, totalPrice: itemTotalPrice,
+      quantity, storage: selectedStorage, color: selectedColor, imageUrl: product.imageUrl,
+    };
+    // Buy Now takes this single item straight to checkout (replaces cart, matching "buy now" intent)
+    localStorage.setItem("cart", JSON.stringify([cartItem]));
+    localStorage.removeItem("checkout_shipping");
+    window.dispatchEvent(new Event("storage"));
+    setLocation("/checkout/shipping");
+  };
+
   const currentPriceOffset = currentStorage?.priceOffset || 0;
   const totalPrice = (product.price + currentPriceOffset) * quantity;
   const formatPrice = (price: number) => new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(price);
@@ -252,7 +265,7 @@ export default function ProductDetails() {
               </button>
             </div>
             <Button
-              onClick={() => setIsCheckoutOpen(true)}
+              onClick={handleBuyNow}
               disabled={isOutOfStock}
               size="sm"
               className="h-9 px-5 font-bold rounded-lg"
@@ -357,7 +370,7 @@ export default function ProductDetails() {
                 <span className="text-2xl font-black text-primary tracking-tight">{formatPrice(totalPrice)}</span>
                 <span className="text-xs text-muted-foreground">Incl. VAT</span>
               </div>
-              {product.hotDealDiscount && product.hotDealDiscount > 0 && (
+              {product.hotDealDiscount > 0 && (
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm text-muted-foreground line-through">{formatPrice(product.price)}</span>
                   <span className="text-xs font-black text-white bg-green-600 px-2 py-0.5 rounded-full">{product.hotDealDiscount}% OFF</span>
@@ -454,7 +467,7 @@ export default function ProductDetails() {
 
               {/* Action buttons */}
               <Button
-                onClick={() => setIsCheckoutOpen(true)}
+                onClick={handleBuyNow}
                 disabled={isOutOfStock}
                 className="w-full h-9 text-sm font-bold rounded-xl shadow-sm shadow-primary/20"
               >
@@ -775,7 +788,7 @@ export default function ProductDetails() {
               <span className="text-[22px] font-black text-gray-900 dark:text-white tracking-tight">{formatPrice(totalPrice)}</span>
               <span className="text-[11px] text-gray-400 font-normal">Incl. VAT</span>
             </div>
-            {product.hotDealDiscount && product.hotDealDiscount > 0 && (
+            {product.hotDealDiscount > 0 && (
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[12px] text-gray-400 line-through">{formatPrice(product.price)}</span>
                 <span className="text-[10px] font-black text-white bg-green-600 px-2 py-0.5 rounded-full">{product.hotDealDiscount}% OFF</span>
@@ -971,25 +984,7 @@ export default function ProductDetails() {
             </form>
           </div>
 
-          <CheckoutModal
-            product={product}
-            quantity={quantity}
-            selectedStorage={selectedStorage}
-            selectedColor={selectedColor}
-            open={isCheckoutOpen}
-            onOpenChange={setIsCheckoutOpen}
-          />
         </div>
-
-        {/* Checkout Modal (desktop) */}
-        <CheckoutModal
-          product={product}
-          quantity={quantity}
-          selectedStorage={selectedStorage}
-          selectedColor={selectedColor}
-          open={isCheckoutOpen}
-          onOpenChange={setIsCheckoutOpen}
-        />
 
         {/* Recommendations Section */}
         {recommendations.length > 0 && (
