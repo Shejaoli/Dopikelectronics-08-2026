@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { PROVINCES, DISTRICTS_BY_PROVINCE, KIGALI_SECTORS_BY_DISTRICT, isKigaliDistrict } from "@shared/rwanda-locations";
 
 interface CartItem {
   productId: number;
@@ -36,6 +37,24 @@ interface CartItem {
   imageUrl: string;
 }
 
+// Delivery/pickup time slots, with 24-hour end times used to detect passed slots
+const TIME_SLOTS = [
+  { value: "09:00 AM - 12:00 PM", endHour: 12, endMinute: 0 },
+  { value: "12:00 PM - 03:00 PM", endHour: 15, endMinute: 0 },
+  { value: "03:00 PM - 06:00 PM", endHour: 18, endMinute: 0 },
+  { value: "06:00 PM - 09:00 PM", endHour: 21, endMinute: 0 },
+];
+
+function isTimeSlotPast(slot: { endHour: number; endMinute: number }, selectedDate: Date | undefined) {
+  if (!selectedDate) return false;
+  const now = new Date();
+  const isToday = selectedDate.toDateString() === now.toDateString();
+  if (!isToday) return false;
+  const slotEnd = new Date(selectedDate);
+  slotEnd.setHours(slot.endHour, slot.endMinute, 0, 0);
+  return now >= slotEnd;
+}
+
 // Shipping schema
 const shippingSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -45,9 +64,20 @@ const shippingSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   address: z.string().min(1, "Shipping address is required"),
   apartment: z.string().optional(),
-  city: z.string().min(1, "City is required"),
-  province: z.string().min(1, "Province / State is required"),
+  province: z.string().min(1, "Province / City is required"),
+  district: z.string().min(1, "District is required"),
+  sector: z.string().optional(),
+  cell: z.string().optional(),
+  landmark: z.string().optional(),
   phone: z.string().min(1, "Phone number is required"),
+}).superRefine((data, ctx) => {
+  if (isKigaliDistrict(data.district) && !data.sector) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["sector"],
+      message: "Sector is required for Kigali",
+    });
+  }
 });
 
 type ShippingForm = z.infer<typeof shippingSchema>;
@@ -80,12 +110,20 @@ function CheckoutForm({
     },
   });
 
-  const watchPaymentMethod = paymentForm.watch("paymentMethod");
   const watchOrderType = paymentForm.watch("orderType");
   const watchOrderDate = paymentForm.watch("orderDate");
   const watchOrderTime = paymentForm.watch("orderTime");
 
   const isOrderDetailsComplete = !!watchOrderType && !!watchOrderDate && !!watchOrderTime;
+
+  // If the selected time slot has since passed (e.g. date changed to today, or time elapsed), clear it
+  useEffect(() => {
+    if (!watchOrderTime) return;
+    const slot = TIME_SLOTS.find((s) => s.value === watchOrderTime);
+    if (slot && isTimeSlotPast(slot, watchOrderDate)) {
+      paymentForm.setValue("orderTime", "");
+    }
+  }, [watchOrderDate, watchOrderTime]);
 
   const orderMutation = useMutation({
     mutationFn: async (values: any) => {
@@ -98,12 +136,7 @@ function CheckoutForm({
     },
     onSuccess: (order, variables) => {
       setCreatedOrder(order);
-      if (variables.paymentMethod === "WhatsApp Order Confirmation") {
-        const message = `Hello DOPIK ELECTRONICS, my name is ${shippingData?.firstName} ${shippingData?.lastName}. I've placed order #${order.id} via WhatsApp.\n\nItems:\n${cart.map((item: any) => `- ${item.quantity}x ${item.name} (${item.storage}, ${item.color}) - ${formatPrice(item.price)}`).join("\n")}\n\nTotal: ${formatPrice(total)}\n\nShipping Address: ${shippingData?.address}, ${shippingData?.city}, ${shippingData?.province}\nPhone: ${shippingData?.phone}`;
-        const whatsappUrl = `https://wa.me/250783562143?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, "_blank");
-      }
-      
+
       if (variables.paymentMethod === "MomoPay") {
         setShowMomoInstructions(true);
       } else {
@@ -128,11 +161,19 @@ function CheckoutForm({
     }
 
     try {
+      const locationParts = [shippingData.sector, shippingData.district, shippingData.province].filter(Boolean);
+      const deliveryLocation = `${shippingData.address}${shippingData.cell ? `, ${shippingData.cell} Cell` : ""}, ${locationParts.join(", ")}${shippingData.landmark ? ` (Near: ${shippingData.landmark})` : ""}`;
+
       const orderData = {
         customerName: `${shippingData.firstName} ${shippingData.lastName}`,
         customerPhone: shippingData.phone,
         customerEmail: shippingData.email,
-        deliveryLocation: `${shippingData.address}, ${shippingData.city}, ${shippingData.province}`,
+        deliveryLocation,
+        deliveryProvince: shippingData.province,
+        deliveryDistrict: shippingData.district,
+        deliverySector: shippingData.sector || null,
+        deliveryCell: shippingData.cell || null,
+        deliveryLandmark: shippingData.landmark || null,
         orderType: data.orderType,
         orderDate: data.orderDate ? format(data.orderDate, "PPP") : null,
         orderTime: data.orderTime,
@@ -253,7 +294,7 @@ function CheckoutForm({
             <div className="text-sm space-y-1">
               <p className="font-bold text-lg">{shippingData?.firstName} {shippingData?.lastName}</p>
               <p className="text-muted-foreground">{shippingData?.address}</p>
-              <p className="text-muted-foreground">{shippingData?.city}, {shippingData?.province}</p>
+              <p className="text-muted-foreground">{[shippingData?.sector, shippingData?.district, shippingData?.province].filter(Boolean).join(", ")}</p>
               <p className="text-muted-foreground font-medium">{shippingData?.phone}</p>
               <p className="text-primary font-bold">{shippingData?.email}</p>
             </div>
@@ -289,7 +330,7 @@ function CheckoutForm({
             <div className="space-y-1 text-sm text-muted-foreground ml-7">
               <p className="font-bold text-foreground text-lg">{shippingData?.firstName} {shippingData?.lastName}</p>
               <p>{shippingData?.email}</p>
-              <p>{shippingData?.address}{shippingData?.apartment ? `, ${shippingData.apartment}` : ""}, {shippingData?.city} {shippingData?.province}</p>
+              <p>{shippingData?.address}{shippingData?.apartment ? `, ${shippingData.apartment}` : ""}, {[shippingData?.sector, shippingData?.district, shippingData?.province].filter(Boolean).join(", ")}</p>
               <p className="font-bold text-foreground">{shippingData?.phone}</p>
             </div>
           </div>
@@ -353,9 +394,11 @@ function CheckoutForm({
                           mode="single"
                           selected={field.value}
                           onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date() || date < new Date("1900-01-01")
-                          }
+                          disabled={(date) => {
+                            const startOfToday = new Date();
+                            startOfToday.setHours(0, 0, 0, 0);
+                            return date < startOfToday || date < new Date("1900-01-01");
+                          }}
                           initialFocus
                         />
                       </PopoverContent>
@@ -378,10 +421,14 @@ function CheckoutForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="09:00 AM - 12:00 PM">09:00 AM - 12:00 PM</SelectItem>
-                        <SelectItem value="12:00 PM - 03:00 PM">12:00 PM - 03:00 PM</SelectItem>
-                        <SelectItem value="03:00 PM - 06:00 PM">03:00 PM - 06:00 PM</SelectItem>
-                        <SelectItem value="06:00 PM - 09:00 PM">06:00 PM - 09:00 PM</SelectItem>
+                        {TIME_SLOTS.map((slot) => {
+                          const passed = isTimeSlotPast(slot, watchOrderDate);
+                          return (
+                            <SelectItem key={slot.value} value={slot.value} disabled={passed}>
+                              {slot.value}{passed ? " (Passed)" : ""}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -438,19 +485,6 @@ function CheckoutForm({
                       </div>
                     </FormItem>
 
-                    <FormItem className="flex items-start space-x-4 space-y-0 rounded-2xl border-2 border-border p-6 cursor-pointer hover:bg-accent/5 transition-colors data-[state=checked]:border-primary">
-                      <FormControl>
-                        <RadioGroupItem value="WhatsApp Order Confirmation" className="mt-1" />
-                      </FormControl>
-                      <div className="space-y-1">
-                        <FormLabel className="font-bold text-lg flex items-center gap-2">
-                          <MessageCircle className="h-5 w-5 text-[#25D366]" />
-                          WhatsApp Order Confirmation
-                        </FormLabel>
-                        <p className="text-sm text-muted-foreground">Send your order details to us on WhatsApp for manual confirmation and payment instructions.</p>
-                      </div>
-                    </FormItem>
-
                     <FormItem className="flex flex-col rounded-2xl border-2 border-border overflow-hidden cursor-pointer hover:bg-accent/5 transition-colors data-[state=checked]:border-primary">
                       <div className="flex items-start space-x-4 p-6">
                         <FormControl>
@@ -469,26 +503,6 @@ function CheckoutForm({
                       </div>
                     </FormItem>
 
-                    <FormItem className="flex flex-col rounded-2xl border-2 border-border overflow-hidden cursor-pointer hover:bg-accent/5 transition-colors data-[state=checked]:border-primary">
-                      <div className="flex items-start space-x-4 p-6">
-                        <FormControl>
-                          <RadioGroupItem value="Card Payment" className="mt-1" />
-                        </FormControl>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <FormLabel className="font-bold text-lg flex items-center gap-2">
-                              <CardIcon className="h-5 w-5 text-primary" />
-                              Card Payment
-                            </FormLabel>
-                            <div className="flex gap-2">
-                              <SiVisa className="h-5 w-8 text-[#1A1F71]" />
-                              <SiMastercard className="h-5 w-8 text-[#EB001B]" />
-                            </div>
-                          </div>
-                          <p className="text-sm text-muted-foreground">Secure payment using your credit or debit card.</p>
-                        </div>
-                      </div>
-                    </FormItem>
                   </RadioGroup>
                 </FormControl>
                 <FormMessage />
@@ -520,7 +534,7 @@ function CheckoutForm({
               disabled={orderMutation.isPending || !isOrderDetailsComplete}
               className="flex-[2] py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-tighter"
             >
-              {orderMutation.isPending ? "Processing..." : (watchPaymentMethod === "WhatsApp Order Confirmation" ? "Complete on WhatsApp" : "Pay Now")}
+              {orderMutation.isPending ? "Processing..." : "Pay Now"}
               <ArrowRight className="ml-2 h-6 w-6" />
             </Button>
           </div>
@@ -540,6 +554,12 @@ function CheckoutShipping({
   shippingForm: any, 
   onNext: (data: ShippingForm) => void 
 }) {
+  const watchProvince = shippingForm.watch("province");
+  const watchDistrict = shippingForm.watch("district");
+  const districtOptions = watchProvince ? DISTRICTS_BY_PROVINCE[watchProvince] || [] : [];
+  const sectorOptions = watchDistrict && isKigaliDistrict(watchDistrict) ? KIGALI_SECTORS_BY_DISTRICT[watchDistrict] || [] : [];
+  const showSectorAndCell = !!watchDistrict && isKigaliDistrict(watchDistrict);
+
   return (
     <Form {...shippingForm}>
       <form onSubmit={shippingForm.handleSubmit(onNext)} className="space-y-8">
@@ -657,28 +677,128 @@ function CheckoutShipping({
             </div>
             <FormField
               control={shippingForm.control}
-              name="city"
+              name="province"
               render={({ field }) => (
                 <FormItem>
-                  <FormControl>
-                    <Input placeholder="City" className="h-12 rounded-xl border-2" {...field} />
-                  </FormControl>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      shippingForm.setValue("district", "");
+                      shippingForm.setValue("sector", "");
+                      shippingForm.setValue("cell", "");
+                    }}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-12 rounded-xl border-2">
+                        <SelectValue placeholder="Select Province / City" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PROVINCES.map((p) => (
+                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <FormField
               control={shippingForm.control}
-              name="province"
+              name="district"
               render={({ field }) => (
                 <FormItem>
-                  <FormControl>
-                    <Input placeholder="Province" className="h-12 rounded-xl border-2" {...field} />
-                  </FormControl>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      shippingForm.setValue("sector", "");
+                      shippingForm.setValue("cell", "");
+                    }}
+                    value={field.value}
+                    disabled={!watchProvince}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-12 rounded-xl border-2">
+                        <SelectValue placeholder="Select District" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {districtOptions.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            {showSectorAndCell && (
+              <FormField
+                control={shippingForm.control}
+                name="sector"
+                render={({ field }) => (
+                  <FormItem>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="h-12 rounded-xl border-2">
+                          <SelectValue placeholder="Select Sector" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {sectorOptions.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            {showSectorAndCell && (
+              <FormField
+                control={shippingForm.control}
+                name="cell"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input placeholder="Cell (optional)" className="h-12 rounded-xl border-2" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            <div className="md:col-span-2">
+              <FormField
+                control={shippingForm.control}
+                name="landmark"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Input placeholder="Nearby known place (optional) — e.g. next to a school, church, market" className="h-12 rounded-xl border-2" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            {watchProvince && (
+              <div className="md:col-span-2 rounded-xl border-2 border-primary/20 bg-primary/5 p-4 text-sm">
+                {watchProvince === "Kigali City" ? (
+                  <>
+                    <p className="font-bold text-foreground">🚚 Delivery Fee: Negotiable with the deliverer</p>
+                    <p className="text-muted-foreground mt-1">Delivery fee depends on your exact location and will be negotiated/agreed upon between you and the deliverer.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-foreground">🚚 Delivery Fee: Based on transportation service</p>
+                    <p className="text-muted-foreground mt-1">Delivery fee depends on the transportation service/fare to your location. The final delivery cost will be communicated and confirmed before delivery.</p>
+                  </>
+                )}
+              </div>
+            )}
             <div className="md:col-span-2">
               <FormField
                 control={shippingForm.control}
@@ -709,6 +829,7 @@ export default function Checkout() {
   const [location, setLocation] = useLocation();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [shippingData, setShippingData] = useState<ShippingForm | null>(null);
+  const [guestContinue, setGuestContinue] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<any>(null);
 
   const { data: customer, isLoading: customerLoading } = useQuery<any>({
@@ -732,8 +853,11 @@ export default function Checkout() {
       lastName: "",
       address: "",
       apartment: "",
-      city: "",
       province: "",
+      district: "",
+      sector: "",
+      cell: "",
+      landmark: "",
       phone: "",
     },
   });
@@ -773,8 +897,11 @@ export default function Checkout() {
         country: "Rwanda",
         address: "",
         apartment: "",
-        city: "",
         province: "",
+        district: "",
+        sector: "",
+        cell: "",
+        landmark: "",
       });
     }
   }, [customer]);
@@ -793,8 +920,8 @@ export default function Checkout() {
 
   const isPaymentStep = location === "/checkout/payment";
 
-  // Auth gate — must be logged in to checkout
-  if (!customerLoading && !customer) {
+  // Auth gate — offer sign-in benefits, but let guests continue too
+  if (!customerLoading && !customer && !guestContinue) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col">
         <Navbar />
@@ -808,11 +935,27 @@ export default function Checkout() {
               <ShieldCheck className="w-10 h-10 text-primary" />
             </div>
             <div className="space-y-3">
-              <h1 className="text-3xl font-black tracking-tighter">Sign in to checkout</h1>
+              <h1 className="text-3xl font-black tracking-tighter">Sign in to checkout faster</h1>
               <p className="text-muted-foreground text-base">
-                You need an account to place an order. Your details will be pre-filled at checkout.
+                Your details will be pre-filled at checkout — or continue as a guest.
               </p>
             </div>
+
+            <div className="rounded-2xl border border-border bg-accent/20 p-4 text-left space-y-3">
+              <div className="flex items-start gap-3">
+                <Package className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <span className="text-sm text-muted-foreground">Track your orders anytime from your account</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <Clock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <span className="text-sm text-muted-foreground">Faster checkout next time — details saved</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <span className="text-sm text-muted-foreground">See your full order history and reorder easily</span>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-3">
               <Link href={`/login?redirect=${encodeURIComponent(location)}`}>
                 <Button className="w-full h-14 text-lg font-black rounded-2xl shadow-xl shadow-primary/20">
@@ -826,6 +969,14 @@ export default function Checkout() {
                   Create Account
                 </Button>
               </Link>
+              <Button
+                variant="ghost"
+                className="w-full h-12 text-base font-semibold rounded-2xl"
+                onClick={() => setGuestContinue(true)}
+                data-testid="button-continue-guest"
+              >
+                Continue as Guest
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground">
               Already in your cart? No worries — items are saved.

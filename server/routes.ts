@@ -9,6 +9,7 @@ import { eq, count, desc } from "drizzle-orm";
 import { OAuth2Client } from "google-auth-library";
 import { randomBytes } from "crypto";
 import { insertProductSchema, insertOrderSchema, orders, insertVideoSchema, videos, admins, insertHomeSectionSchema, products, insertCouponCodeSchema } from "@shared/schema";
+import { isValidRwandaLocation } from "@shared/rwanda-locations";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
 import path from "path";
@@ -1097,6 +1098,19 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
   app.post("/api/orders", async (req, res) => {
     try {
       const data = req.body;
+
+      // Validate the Rwanda location combination when a structured location was submitted.
+      // Orders without these fields (e.g. legacy clients) are still accepted.
+      if (data.deliveryProvince || data.deliveryDistrict || data.deliverySector) {
+        const valid = isValidRwandaLocation(
+          data.deliveryProvince || "",
+          data.deliveryDistrict || "",
+          data.deliverySector || null
+        );
+        if (!valid) {
+          return res.status(400).json({ message: "Invalid delivery location combination." });
+        }
+      }
 
       // Calculate total amount from items to ensure accuracy
       const items = data.items || [];

@@ -54,7 +54,8 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
     // Buy Now takes this single item straight to checkout (replaces cart, matching "buy now" intent)
     localStorage.setItem("cart", JSON.stringify([cartItem]));
     window.dispatchEvent(new Event("storage"));
-    setLocation("/checkout");
+    localStorage.removeItem("checkout_shipping");
+    setLocation("/checkout/shipping");
   };
 
   return (
