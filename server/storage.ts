@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { products, admins, orders, auditLogs, videos, siteVisitors, homeSections, notFoundLogs, reviews, featuredSlides, couponCodes, customers, type Product, type InsertProduct, type Admin, type InsertAdmin, type Order, type InsertOrder, type AuditLog, type InsertAuditLog, type Video, type InsertVideo, type SiteVisitor, type InsertSiteVisitor, type HomeSection, type InsertHomeSection, type NotFoundLog, type InsertNotFoundLog, type Review, type InsertReview, type FeaturedSlide, type InsertFeaturedSlide, type CouponCode, type InsertCouponCode, type Customer } from "@shared/schema";
+import { products, admins, orders, auditLogs, videos, siteVisitors, homeSections, notFoundLogs, reviews, featuredSlides, couponCodes, customers, deliveryFees, type Product, type InsertProduct, type Admin, type InsertAdmin, type Order, type InsertOrder, type AuditLog, type InsertAuditLog, type Video, type InsertVideo, type SiteVisitor, type InsertSiteVisitor, type HomeSection, type InsertHomeSection, type NotFoundLog, type InsertNotFoundLog, type Review, type InsertReview, type FeaturedSlide, type InsertFeaturedSlide, type CouponCode, type InsertCouponCode, type Customer, type DeliveryFee } from "@shared/schema";
 import { eq, like, and, desc, gte, lte, or, count, countDistinct } from "drizzle-orm";
 
 export interface PaginatedResult<T> {
@@ -131,6 +131,11 @@ export interface IStorage {
   updateCustomerPassword(id: number, passwordHash: string): Promise<Customer>;
   updateCustomerGoogleId(id: number, googleId: string, avatar?: string): Promise<Customer>;
   getOrdersByCustomerEmail(email: string): Promise<Order[]>;
+
+  // Delivery fee methods
+  getDeliveryFees(): Promise<DeliveryFee[]>;
+  getDeliveryFeeBySector(sector: string): Promise<DeliveryFee | undefined>;
+  updateDeliveryFee(sector: string, fee: number): Promise<DeliveryFee>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -409,6 +414,7 @@ export class DatabaseStorage implements IStorage {
         paymentProvider: order.paymentProvider || null,
         paymentReference: order.paymentReference || null,
         totalAmount: order.totalAmount,
+        deliveryFee: order.deliveryFee || 0,
         currency: order.currency || "RWF",
         status: order.status || "pending",
         items: order.items || [],
@@ -912,6 +918,24 @@ export class DatabaseStorage implements IStorage {
       .set({ usedCount: coupon.usedCount + 1 })
       .where(eq(couponCodes.id, id))
       .returning();
+    return updated;
+  }
+
+  async getDeliveryFees(): Promise<DeliveryFee[]> {
+    return db.select().from(deliveryFees).orderBy(deliveryFees.district, deliveryFees.sector);
+  }
+
+  async getDeliveryFeeBySector(sector: string): Promise<DeliveryFee | undefined> {
+    const [found] = await db.select().from(deliveryFees).where(eq(deliveryFees.sector, sector)).limit(1);
+    return found;
+  }
+
+  async updateDeliveryFee(sector: string, fee: number): Promise<DeliveryFee> {
+    const [updated] = await db.update(deliveryFees)
+      .set({ fee, updatedAt: new Date() })
+      .where(eq(deliveryFees.sector, sector))
+      .returning();
+    if (!updated) throw new Error(`Delivery fee for sector "${sector}" not found`);
     return updated;
   }
 

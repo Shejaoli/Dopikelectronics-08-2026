@@ -549,16 +549,20 @@ function CheckoutForm({
 
 function CheckoutShipping({ 
   shippingForm, 
-  onNext 
+  onNext,
+  deliveryFees
 }: { 
   shippingForm: any, 
-  onNext: (data: ShippingForm) => void 
+  onNext: (data: ShippingForm) => void,
+  deliveryFees?: { sector: string; fee: number }[]
 }) {
   const watchProvince = shippingForm.watch("province");
   const watchDistrict = shippingForm.watch("district");
+  const watchSector = shippingForm.watch("sector");
   const districtOptions = watchProvince ? DISTRICTS_BY_PROVINCE[watchProvince] || [] : [];
   const sectorOptions = watchDistrict && isKigaliDistrict(watchDistrict) ? KIGALI_SECTORS_BY_DISTRICT[watchDistrict] || [] : [];
   const showSectorAndCell = !!watchDistrict && isKigaliDistrict(watchDistrict);
+  const selectedSectorFee = watchSector ? deliveryFees?.find((f) => f.sector === watchSector)?.fee : undefined;
 
   return (
     <Form {...shippingForm}>
@@ -787,10 +791,17 @@ function CheckoutShipping({
             {watchProvince && (
               <div className="md:col-span-2 rounded-xl border-2 border-primary/20 bg-primary/5 p-4 text-sm">
                 {watchProvince === "Kigali City" ? (
-                  <>
-                    <p className="font-bold text-foreground">🚚 Delivery Fee: Negotiable with the deliverer</p>
-                    <p className="text-muted-foreground mt-1">Delivery fee depends on your exact location and will be negotiated/agreed upon between you and the deliverer.</p>
-                  </>
+                  selectedSectorFee !== undefined ? (
+                    <>
+                      <p className="font-bold text-foreground">🚚 Delivery Fee: {new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(selectedSectorFee)}</p>
+                      <p className="text-muted-foreground mt-1">This is the standard delivery fee for your selected sector and will be added to your order total.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-bold text-foreground">🚚 Delivery Fee: Negotiable with the deliverer</p>
+                      <p className="text-muted-foreground mt-1">Select your sector above to see the exact delivery fee.</p>
+                    </>
+                  )
                 ) : (
                   <>
                     <p className="font-bold text-foreground">🚚 Delivery Fee: Based on transportation service</p>
@@ -884,6 +895,12 @@ function OrderConfirmation({ order, formatPrice }: { order: any; formatPrice: (p
                   </div>
                 ))}
                 <Separator />
+              </div>
+            )}
+            {order?.deliveryFee > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground font-medium">Delivery Fee</span>
+                <span className="font-bold">{formatPrice(order.deliveryFee)}</span>
               </div>
             )}
             <div className="flex justify-between items-center">
@@ -1001,7 +1018,21 @@ export default function Checkout() {
     setLocation("/checkout/payment");
   };
 
-  const total = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+  const { data: deliveryFeesData } = useQuery<{ sector: string; fee: number }[]>({
+    queryKey: ["/api/delivery-fees"],
+    queryFn: async () => {
+      const res = await fetch("/api/delivery-fees");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60000,
+  });
+
+  const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+  const deliveryFee = shippingData?.sector
+    ? (deliveryFeesData?.find((f) => f.sector === shippingData.sector)?.fee ?? 0)
+    : 0;
+  const total = subtotal + deliveryFee;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(price);
@@ -1134,7 +1165,8 @@ export default function Checkout() {
             ) : (
               <CheckoutShipping 
                 shippingForm={shippingForm} 
-                onNext={onShippingSubmit} 
+                onNext={onShippingSubmit}
+                deliveryFees={deliveryFeesData}
               />
             )}
           </div>
@@ -1167,11 +1199,15 @@ export default function Checkout() {
                 <div className="mt-8 space-y-4 pt-8 border-t">
                   <div className="flex justify-between text-sm font-medium">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>{formatPrice(total)}</span>
+                    <span>{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-medium">
                     <span className="text-muted-foreground">Shipping</span>
-                    <span className="text-green-500 font-bold uppercase tracking-widest text-[10px] bg-green-500/10 px-2 py-1 rounded-full">Calculated at next step</span>
+                    {shippingData?.sector ? (
+                      <span>{formatPrice(deliveryFee)}</span>
+                    ) : (
+                      <span className="text-green-500 font-bold uppercase tracking-widest text-[10px] bg-green-500/10 px-2 py-1 rounded-full">Calculated at next step</span>
+                    )}
                   </div>
                   <Separator />
                   <div className="flex justify-between items-baseline">

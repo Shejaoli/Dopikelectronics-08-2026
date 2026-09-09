@@ -1114,10 +1114,22 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
 
       // Calculate total amount from items to ensure accuracy
       const items = data.items || [];
-      const calculatedTotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+      const itemsTotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+
+      // Look up the delivery fee server-side from the selected sector.
+      // Never trust a client-submitted fee amount.
+      let deliveryFee = 0;
+      if (data.deliverySector) {
+        const feeRecord = await storage.getDeliveryFeeBySector(data.deliverySector);
+        if (feeRecord) {
+          deliveryFee = feeRecord.fee;
+        }
+      }
+      const calculatedTotal = itemsTotal + deliveryFee;
 
       const order = await storage.createOrder({
         ...data,
+        deliveryFee,
         totalAmount: calculatedTotal
       });
       res.status(201).json(order);
@@ -1812,6 +1824,31 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       const id = parseInt(req.params.id);
       await storage.deleteCouponCode(id);
       res.status(204).end();
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Public: get all delivery fees (for checkout to read)
+  app.get("/api/delivery-fees", async (_req, res) => {
+    try {
+      const fees = await storage.getDeliveryFees();
+      res.json(fees);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Admin: update a sector's delivery fee
+  app.patch("/api/admin/delivery-fees/:sector", requireAdminAuth, async (req, res) => {
+    try {
+      const sector = req.params.sector;
+      const fee = Number(req.body.fee);
+      if (!Number.isInteger(fee) || fee < 0) {
+        return res.status(400).json({ message: "Fee must be a non-negative whole number" });
+      }
+      const updated = await storage.updateDeliveryFee(sector, fee);
+      res.json(updated);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }

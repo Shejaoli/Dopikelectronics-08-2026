@@ -69,6 +69,7 @@ export const orders = pgTable("orders", {
   paymentProvider: text("payment_provider"), // stripe, paypal, manual
   paymentReference: text("payment_reference"), // stripe intent id or paypal order id
   totalAmount: integer("total_amount").notNull(),
+  deliveryFee: integer("delivery_fee").default(0),
   currency: text("currency").default("RWF").notNull(),
   status: text("status").notNull().default("pending"),
   items: jsonb("items").$type<{ productId: number; name: string; quantity: number; price: number; storage?: string; color?: string }[]>().notNull().default([]),
@@ -217,6 +218,18 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({ id: tru
 });
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+
+export const deliveryFees = pgTable("delivery_fees", {
+  id: serial("id").primaryKey(),
+  district: text("district").notNull(),
+  sector: text("sector").notNull().unique(),
+  fee: integer("fee").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertDeliveryFeeSchema = createInsertSchema(deliveryFees).omit({ id: true, updatedAt: true });
+export type DeliveryFee = typeof deliveryFees.$inferSelect;
+export type InsertDeliveryFee = z.infer<typeof insertDeliveryFeeSchema>;
 
 // Types for API
 export type ProductResponse = Product;
