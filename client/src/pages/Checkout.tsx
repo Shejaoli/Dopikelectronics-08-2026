@@ -12,7 +12,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, MessageCircle, Truck, CreditCard as CardIcon, Wallet, Calendar as CalendarIcon, Clock, Package, ArrowLeft, ArrowRight, ChevronRight, LogIn, UserPlus, ShieldCheck } from "lucide-react";
+import { CheckCircle2, MessageCircle, Truck, CreditCard as CardIcon, Wallet, Calendar as CalendarIcon, Clock, Package, ArrowLeft, ArrowRight, ChevronRight, LogIn, UserPlus, ShieldCheck, Copy, MapPin } from "lucide-react";
 import { SiVisa, SiMastercard } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
@@ -825,6 +825,94 @@ function CheckoutShipping({
   );
 }
 
+function OrderConfirmation({ order, formatPrice }: { order: any; formatPrice: (p: number) => string }) {
+  const { toast } = useToast();
+
+  const copyTrackingCode = () => {
+    if (!order?.trackingCode) return;
+    navigator.clipboard.writeText(order.trackingCode);
+    toast({ title: "Copied", description: "Tracking code copied to clipboard." });
+  };
+
+  return (
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <Navbar />
+      <main className="flex-1 flex items-center justify-center px-4 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-2xl"
+        >
+          <div className="text-center space-y-4 mb-10">
+            <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+              <CheckCircle2 className="w-10 h-10 text-primary" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tighter">Order Placed Successfully!</h1>
+            <p className="text-muted-foreground text-base">
+              Thank you{order?.customerName ? `, ${order.customerName}` : ""}. We've received your order and will be in touch shortly.
+            </p>
+          </div>
+
+          {order?.trackingCode && (
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 mb-6 text-center">
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">Your Tracking Code</p>
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-3xl font-black tracking-[0.2em] text-primary">{order.trackingCode}</span>
+                <Button type="button" variant="outline" size="icon" className="h-9 w-9" onClick={copyTrackingCode} data-testid="button-copy-tracking-code">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Save this code — use it with your phone number on the{" "}
+                <Link href="/track-order" className="underline font-bold text-foreground">Track Order</Link> page to check your order status anytime.
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+            {order?.items?.length > 0 && (
+              <div className="space-y-3">
+                {order.items.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-sm">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.quantity}x {item.storage ? `• ${item.storage}` : ""} {item.color ? `• ${item.color}` : ""}
+                      </p>
+                    </div>
+                    <p className="font-bold text-sm text-primary">{formatPrice(item.price * item.quantity)}</p>
+                  </div>
+                ))}
+                <Separator />
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="font-black text-lg">Total</span>
+              <span className="font-black text-2xl text-primary">{formatPrice(order?.totalAmount || 0)}</span>
+            </div>
+            {order?.deliveryLocation && (
+              <div className="flex items-start gap-2 pt-2 text-sm text-muted-foreground">
+                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>{order.deliveryLocation}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 mt-8">
+            <Link href="/track-order" className="flex-1">
+              <Button variant="outline" className="w-full h-12 font-bold rounded-2xl">Track Your Order</Button>
+            </Link>
+            <Link href="/shop" className="flex-1">
+              <Button className="w-full h-12 font-bold rounded-2xl">Continue Shopping</Button>
+            </Link>
+          </div>
+        </motion.div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 export default function Checkout() {
   const [location, setLocation] = useLocation();
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -863,14 +951,15 @@ export default function Checkout() {
   });
 
   useEffect(() => {
+    const isOrderSuccessRoute = location === "/order-success" || location === "/order/success";
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {
       const parsedCart = JSON.parse(savedCart);
-      if (parsedCart.length === 0 && location !== "/order-success") {
+      if (parsedCart.length === 0 && !isOrderSuccessRoute) {
         setLocation("/shop");
       }
       setCart(parsedCart);
-    } else if (location !== "/order-success") {
+    } else if (!isOrderSuccessRoute) {
       setLocation("/shop");
     }
 
@@ -919,6 +1008,34 @@ export default function Checkout() {
   };
 
   const isPaymentStep = location === "/checkout/payment";
+  const isOrderSuccess = location === "/order-success" || location === "/order/success";
+
+  if (isOrderSuccess) {
+    if (createdOrder) {
+      return <OrderConfirmation order={createdOrder} formatPrice={formatPrice} />;
+    }
+    // Direct visit or page refresh with no order in memory — point them to Track Order instead of a blank form
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center px-4 py-20 text-center">
+          <div className="max-w-md space-y-6">
+            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Package className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight">Order details unavailable here</h1>
+            <p className="text-muted-foreground">
+              If you just placed an order, check your tracking code and phone number on the Track Order page.
+            </p>
+            <Link href="/track-order">
+              <Button className="h-12 px-8 font-bold rounded-2xl">Track Your Order</Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   // Auth gate — offer sign-in benefits, but let guests continue too
   if (!customerLoading && !customer && !guestContinue) {

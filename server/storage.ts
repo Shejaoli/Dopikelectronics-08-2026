@@ -55,6 +55,7 @@ export interface IStorage {
   getOrdersPaginated(filters?: { search?: string; status?: string; startDate?: string; endDate?: string; page?: number; limit?: number }): Promise<PaginatedResult<Order>>;
   getOrder(id: number): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
+  getOrderByTrackingCode(trackingCode: string): Promise<Order | undefined>;
   updateOrderStatus(id: number, status: string): Promise<Order>;
   getProductByNameAndBrand(name: string, brand: string): Promise<Product | undefined>;
   getAdminStats(filters?: { startDate?: string; endDate?: string }): Promise<any>;
@@ -306,7 +307,30 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getOrderByTrackingCode(trackingCode: string): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.trackingCode, trackingCode.toUpperCase()));
+    return order;
+  }
+
   async createOrder(order: any): Promise<Order> {
+    // Generate a unique 8-character tracking code (uppercase alphanumeric,
+    // excluding ambiguous characters 0/O/1/I) with a collision-retry loop.
+    const TRACKING_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const generateTrackingCode = () => {
+      let code = "";
+      for (let i = 0; i < 8; i++) {
+        code += TRACKING_CODE_CHARS.charAt(Math.floor(Math.random() * TRACKING_CODE_CHARS.length));
+      }
+      return code;
+    };
+
+    let trackingCode = generateTrackingCode();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const [existing] = await db.select({ id: orders.id }).from(orders).where(eq(orders.trackingCode, trackingCode));
+      if (!existing) break;
+      trackingCode = generateTrackingCode();
+    }
+
     return await db.transaction(async (tx) => {
       // 1. Validate and Deduct Stock
       for (const item of order.items || []) {
@@ -367,10 +391,16 @@ export class DatabaseStorage implements IStorage {
 
       // 2. Create Order
       const [newOrder] = await tx.insert(orders).values({
+        trackingCode,
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         customerEmail: order.customerEmail || null,
         deliveryLocation: order.deliveryLocation || null,
+        deliveryProvince: order.deliveryProvince || null,
+        deliveryDistrict: order.deliveryDistrict || null,
+        deliverySector: order.deliverySector || null,
+        deliveryCell: order.deliveryCell || null,
+        deliveryLandmark: order.deliveryLandmark || null,
         orderType: order.orderType || "Delivery",
         orderDate: order.orderDate || null,
         orderTime: order.orderTime || null,

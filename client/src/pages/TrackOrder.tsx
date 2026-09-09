@@ -10,17 +10,35 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Search, Package, Calendar, MapPin, Hash, Phone, Clock } from "lucide-react";
+import { Search, Package, Calendar, MapPin, Hash, Phone, Clock, FileText, CheckCircle2, Truck, PackageCheck } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const trackSchema = z.object({
-  orderId: z.string().min(1, "Order ID is required"),
+  trackingCode: z.string().min(1, "Tracking code is required"),
   phone: z.string().min(1, "Phone number is required"),
 });
 
 type TrackForm = z.infer<typeof trackSchema>;
+
+const STATUS_STEPS = [
+  { label: "Order Placed", status: "pending", icon: FileText, color: "text-blue-500" },
+  { label: "Paid", status: "paid", icon: CheckCircle2, color: "text-green-500" },
+  { label: "Processing", status: "processing", icon: Package, color: "text-yellow-500" },
+  { label: "Shipped", status: "shipped", icon: Truck, color: "text-purple-500" },
+  { label: "Completed", status: "completed", icon: PackageCheck, color: "text-primary" },
+];
+
+const STATUS_ORDER = ["pending", "paid", "processing", "shipped", "completed"];
+
+function isStepComplete(stepStatus: string, currentStatus: string) {
+  const stepIdx = STATUS_ORDER.indexOf(stepStatus);
+  const currentIdx = STATUS_ORDER.indexOf((currentStatus || "").toLowerCase());
+  if (currentIdx === -1) return stepStatus === "pending"; // unknown/cancelled statuses still show order as placed
+  return stepIdx <= currentIdx;
+}
 
 export default function TrackOrder() {
   const [order, setOrder] = useState<any>(null);
@@ -29,16 +47,15 @@ export default function TrackOrder() {
   const form = useForm<TrackForm>({
     resolver: zodResolver(trackSchema),
     defaultValues: {
-      orderId: "",
+      trackingCode: "",
       phone: "",
     },
   });
 
   const trackMutation = useMutation({
     mutationFn: async (values: TrackForm) => {
-      // Remove '#' if user added it
-      const cleanId = values.orderId.replace("#", "").trim();
-      const res = await apiRequest("GET", `/api/orders/public/track?id=${cleanId}&phone=${values.phone}`);
+      const cleanCode = values.trackingCode.trim().toUpperCase();
+      const res = await apiRequest("GET", `/api/orders/public/track?trackingCode=${encodeURIComponent(cleanCode)}&phone=${encodeURIComponent(values.phone)}`);
       if (!res.ok) {
         if (res.status === 404) return null;
         throw new Error("Tracking failed");
@@ -79,7 +96,7 @@ export default function TrackOrder() {
           <div className="text-center mb-10">
             <h1 className="text-4xl font-extrabold tracking-tight mb-4">Track Your Order</h1>
             <p className="text-muted-foreground text-lg">
-              Enter your Order ID and Phone Number to see your order status.
+              Enter your Tracking Code and Phone Number to see your order status.
             </p>
           </div>
 
@@ -89,14 +106,14 @@ export default function TrackOrder() {
                 <form onSubmit={form.handleSubmit((data) => trackMutation.mutate(data))} className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
-                    name="orderId"
+                    name="trackingCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Order ID</FormLabel>
+                        <FormLabel>Tracking Code</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input placeholder="e.g. 123" {...field} className="pl-9 h-12" />
+                            <Input placeholder="e.g. 7XJ9KQ2M" {...field} className="pl-9 h-12 uppercase tracking-widest" />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -152,7 +169,7 @@ export default function TrackOrder() {
                   <div>
                     <CardTitle className="text-2xl flex items-center gap-2">
                       <Package className="h-6 w-6 text-primary" />
-                      Order #{order.id}
+                      Order #{order.trackingCode}
                     </CardTitle>
                     <div className="flex items-center gap-2 text-muted-foreground mt-1">
                       <Calendar className="h-4 w-4" />
@@ -165,6 +182,30 @@ export default function TrackOrder() {
                 </div>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
+                {!["cancelled", "refunded", "failed"].includes((order.status || "").toLowerCase()) && (
+                  <div className="border p-4 rounded-xl bg-muted/30">
+                    <h4 className="font-semibold mb-4 text-sm text-muted-foreground uppercase tracking-wider">Order Timeline</h4>
+                    <div className="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+                      {STATUS_STEPS.map((step, idx) => {
+                        const completed = isStepComplete(step.status, order.status);
+                        return (
+                          <div key={idx} className="relative flex items-center gap-4">
+                            <div className={cn(
+                              "flex h-10 w-10 items-center justify-center rounded-full border-2 bg-background z-10 transition-colors duration-200",
+                              completed ? "border-primary" : "border-muted"
+                            )}>
+                              <step.icon className={cn("h-5 w-5", completed ? step.color : "text-muted-foreground")} />
+                            </div>
+                            <p className={cn("text-sm font-semibold", completed ? "text-foreground" : "text-muted-foreground")}>
+                              {step.label}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-4">
                     <h3 className="font-bold text-lg flex items-center gap-2">

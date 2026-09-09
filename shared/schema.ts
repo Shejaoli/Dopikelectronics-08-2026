@@ -51,6 +51,7 @@ export const auditLogs = pgTable("audit_logs", {
 
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
+  trackingCode: text("tracking_code").unique(),
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
   customerEmail: text("customer_email"),
