@@ -21,6 +21,7 @@ import { insertOrderSchema } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,27 @@ function isTimeSlotPast(slot: { endHour: number; endMinute: number }, selectedDa
   const slotEnd = new Date(selectedDate);
   slotEnd.setHours(slot.endHour, slot.endMinute, 0, 0);
   return now >= slotEnd;
+}
+
+// Mobile Money networks: dial code to pay DOPIK's merchant number, and the
+// phone number prefixes customers must pay from on each network.
+const MOMO_NETWORKS: Record<string, { dialCode: string; prefixes: string[] }> = {
+  "MTN Mobile Money": { dialCode: "*182*1*1*0788865247#", prefixes: ["078", "079"] },
+  "Airtel Money": { dialCode: "*182*1*2*0788865247#", prefixes: ["072", "073"] },
+};
+
+function isMomoNetwork(method: string): method is keyof typeof MOMO_NETWORKS {
+  return method === "MTN Mobile Money" || method === "Airtel Money";
+}
+
+function validateMomoPhone(value: string, network: string): string {
+  const digits = value.replace(/\D/g, "");
+  const config = MOMO_NETWORKS[network];
+  if (!config) return "";
+  if (digits.length !== 10 || !config.prefixes.some((p) => digits.startsWith(p))) {
+    return `Enter a valid ${network} number starting with ${config.prefixes.join(" or ")} (10 digits)`;
+  }
+  return "";
 }
 
 // Shipping schema
@@ -113,8 +135,48 @@ function CheckoutForm({
   const watchOrderType = paymentForm.watch("orderType");
   const watchOrderDate = paymentForm.watch("orderDate");
   const watchOrderTime = paymentForm.watch("orderTime");
+  const watchPaymentMethod = paymentForm.watch("paymentMethod");
 
   const isOrderDetailsComplete = !!watchOrderType && !!watchOrderDate && !!watchOrderTime;
+
+  // Mobile Money: collect and validate the customer's own paying-from number
+  const [momoPhone, setMomoPhone] = useState("");
+  const [momoInput, setMomoInput] = useState("");
+  const [momoError, setMomoError] = useState("");
+  const [momoDialogOpen, setMomoDialogOpen] = useState(false);
+  const [confirmedPaymentMethod, setConfirmedPaymentMethod] = useState("");
+
+  useEffect(() => {
+    if (!isMomoNetwork(watchPaymentMethod)) return;
+    if (momoPhone && !validateMomoPhone(momoPhone, watchPaymentMethod)) return;
+    if (!momoPhone) {
+      setMomoInput("");
+      setMomoError("");
+      setMomoDialogOpen(true);
+    } else if (validateMomoPhone(momoPhone, watchPaymentMethod)) {
+      setMomoPhone("");
+      setMomoInput("");
+      setMomoError("");
+      setMomoDialogOpen(true);
+    }
+  }, [watchPaymentMethod]);
+
+  const handleMomoConfirm = () => {
+    const err = validateMomoPhone(momoInput, watchPaymentMethod);
+    if (err) {
+      setMomoError(err);
+      return;
+    }
+    setMomoPhone(momoInput.replace(/\D/g, ""));
+    setMomoDialogOpen(false);
+  };
+
+  const handleMomoDialogChange = (open: boolean) => {
+    setMomoDialogOpen(open);
+    if (!open && !momoPhone) {
+      paymentForm.setValue("paymentMethod", "Cash on Delivery");
+    }
+  };
 
   // If the selected time slot has since passed (e.g. date changed to today, or time elapsed), clear it
   useEffect(() => {
@@ -137,7 +199,8 @@ function CheckoutForm({
     onSuccess: (order, variables) => {
       setCreatedOrder(order);
 
-      if (variables.paymentMethod === "MomoPay") {
+      if (isMomoNetwork(variables.paymentMethod)) {
+        setConfirmedPaymentMethod(variables.paymentMethod);
         setShowMomoInstructions(true);
       } else {
         localStorage.removeItem("cart");
@@ -160,6 +223,11 @@ function CheckoutForm({
       return;
     }
 
+    if (isMomoNetwork(data.paymentMethod) && !momoPhone) {
+      setMomoDialogOpen(true);
+      return;
+    }
+
     try {
       const locationParts = [shippingData.sector, shippingData.district, shippingData.province].filter(Boolean);
       const deliveryLocation = `${shippingData.address}${shippingData.cell ? `, ${shippingData.cell} Cell` : ""}, ${locationParts.join(", ")}${shippingData.landmark ? ` (Near: ${shippingData.landmark})` : ""}`;
@@ -179,6 +247,8 @@ function CheckoutForm({
         orderTime: data.orderTime,
         orderNotes: data.orderNotes,
         paymentMethod: data.paymentMethod,
+        paymentProvider: isMomoNetwork(data.paymentMethod) ? data.paymentMethod : null,
+        paymentReference: isMomoNetwork(data.paymentMethod) ? momoPhone : null,
         totalAmount: total,
         status: "pending",
         items: cart.map(item => ({
@@ -213,7 +283,7 @@ function CheckoutForm({
             <Wallet className="w-10 h-10 text-primary" />
           </div>
           <h2 className="text-3xl font-black tracking-tight">Complete Your Payment</h2>
-          <p className="text-muted-foreground">Please follow these steps to complete your MomoPay transaction.</p>
+          <p className="text-muted-foreground">Please follow these steps to complete your {confirmedPaymentMethod || "Mobile Money"} transaction.</p>
         </div>
 
         <div className="bg-primary/5 rounded-2xl p-8 border border-primary/10 space-y-6">
@@ -221,7 +291,7 @@ function CheckoutForm({
             <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">1</div>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground uppercase font-black tracking-widest">Step 1: Dial</p>
-              <p className="font-bold text-xl text-primary">*182*1*1*0788865247#</p>
+              <p className="font-bold text-xl text-primary">{MOMO_NETWORKS[confirmedPaymentMethod]?.dialCode || MOMO_NETWORKS["MTN Mobile Money"].dialCode}</p>
             </div>
           </div>
           <div className="flex items-start gap-4">
@@ -488,17 +558,58 @@ function CheckoutForm({
                     <FormItem className="flex flex-col rounded-2xl border-2 border-border overflow-hidden cursor-pointer hover:bg-accent/5 transition-colors data-[state=checked]:border-primary">
                       <div className="flex items-start space-x-4 p-6">
                         <FormControl>
-                          <RadioGroupItem value="MomoPay" className="mt-1" />
+                          <RadioGroupItem value="MTN Mobile Money" className="mt-1" />
                         </FormControl>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
                             <FormLabel className="font-bold text-lg flex items-center gap-2">
                               <Wallet className="h-5 w-5 text-primary" />
-                              MomoPay
+                              MTN Mobile Money
                             </FormLabel>
                             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/MTN_Logo.svg/1200px-MTN_Logo.svg.png" alt="MTN Momo" className="h-6 object-contain" />
                           </div>
-                          <p className="text-sm text-muted-foreground">Pay using Mobile Money (0788865247). Quick and secure mobile payments.</p>
+                          <p className="text-sm text-muted-foreground">Pay using MTN Mobile Money. Quick and secure mobile payments.</p>
+                          {watchPaymentMethod === "MTN Mobile Money" && momoPhone && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <p className="text-sm font-bold text-primary">Paying from: {momoPhone}</p>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setMomoInput(momoPhone); setMomoError(""); setMomoDialogOpen(true); }}
+                                className="text-xs underline text-muted-foreground hover:text-foreground"
+                              >
+                                Change
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </FormItem>
+
+                    <FormItem className="flex flex-col rounded-2xl border-2 border-border overflow-hidden cursor-pointer hover:bg-accent/5 transition-colors data-[state=checked]:border-primary">
+                      <div className="flex items-start space-x-4 p-6">
+                        <FormControl>
+                          <RadioGroupItem value="Airtel Money" className="mt-1" />
+                        </FormControl>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <FormLabel className="font-bold text-lg flex items-center gap-2">
+                              <Wallet className="h-5 w-5 text-primary" />
+                              Airtel Money
+                            </FormLabel>
+                          </div>
+                          <p className="text-sm text-muted-foreground">Pay using Airtel Money. Quick and secure mobile payments.</p>
+                          {watchPaymentMethod === "Airtel Money" && momoPhone && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <p className="text-sm font-bold text-primary">Paying from: {momoPhone}</p>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setMomoInput(momoPhone); setMomoError(""); setMomoDialogOpen(true); }}
+                                className="text-xs underline text-muted-foreground hover:text-foreground"
+                              >
+                                Change
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </FormItem>
@@ -509,6 +620,36 @@ function CheckoutForm({
               </FormItem>
             )}
           />
+
+          <Dialog open={momoDialogOpen} onOpenChange={handleMomoDialogChange}>
+            <DialogContent className="max-w-sm rounded-2xl">
+              <DialogHeader>
+                <DialogTitle>Enter your {isMomoNetwork(watchPaymentMethod) ? watchPaymentMethod : ""} number</DialogTitle>
+                <DialogDescription>
+                  This is the number you'll pay from. We use it to match your payment to your order.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <Input
+                  type="tel"
+                  placeholder="078XXXXXXX"
+                  value={momoInput}
+                  onChange={(e) => { setMomoInput(e.target.value); setMomoError(""); }}
+                  className="text-lg font-bold"
+                  autoFocus
+                />
+                {momoError && <p className="text-sm text-destructive font-medium">{momoError}</p>}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => handleMomoDialogChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={handleMomoConfirm}>
+                  Confirm
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
         <div className="space-y-4">
           {!isOrderDetailsComplete && (
@@ -531,7 +672,7 @@ function CheckoutForm({
             </Button>
             <Button 
               type="submit" 
-              disabled={orderMutation.isPending || !isOrderDetailsComplete}
+              disabled={orderMutation.isPending || !isOrderDetailsComplete || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
               className="flex-[2] py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-tighter"
             >
               {orderMutation.isPending ? "Processing..." : "Pay Now"}
