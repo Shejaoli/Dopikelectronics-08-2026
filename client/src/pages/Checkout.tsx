@@ -162,19 +162,18 @@ function CheckoutForm({
   }, [watchPaymentMethod]);
 
   const handleMomoConfirm = () => {
-    const err = validateMomoPhone(momoInput, watchPaymentMethod);
-    if (err) {
-      setMomoError(err);
-      return;
-    }
+    if (validateMomoPhone(momoInput, watchPaymentMethod)) return;
     setMomoPhone(momoInput.replace(/\D/g, ""));
     setMomoDialogOpen(false);
   };
 
   const handleMomoDialogChange = (open: boolean) => {
     setMomoDialogOpen(open);
-    if (!open && !momoPhone) {
-      paymentForm.setValue("paymentMethod", "Cash on Delivery");
+    if (!open) {
+      paymentForm.setValue("paymentMethod", "");
+      setMomoPhone("");
+      setMomoInput("");
+      setMomoError("");
     }
   };
 
@@ -632,9 +631,13 @@ function CheckoutForm({
               <div className="space-y-2">
                 <Input
                   type="tel"
-                  placeholder="078XXXXXXX"
+                  placeholder={isMomoNetwork(watchPaymentMethod) ? MOMO_NETWORKS[watchPaymentMethod].prefixes.map((p) => `${p}XXXXXXX`).join(" or ") : ""}
                   value={momoInput}
-                  onChange={(e) => { setMomoInput(e.target.value); setMomoError(""); }}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMomoInput(val);
+                    setMomoError(val ? validateMomoPhone(val, watchPaymentMethod) : "");
+                  }}
                   className="text-lg font-bold"
                   autoFocus
                 />
@@ -644,7 +647,7 @@ function CheckoutForm({
                 <Button type="button" variant="ghost" onClick={() => handleMomoDialogChange(false)}>
                   Cancel
                 </Button>
-                <Button type="button" onClick={handleMomoConfirm}>
+                <Button type="button" onClick={handleMomoConfirm} disabled={!!validateMomoPhone(momoInput, watchPaymentMethod)}>
                   Confirm
                 </Button>
               </DialogFooter>
@@ -672,7 +675,7 @@ function CheckoutForm({
             </Button>
             <Button 
               type="submit" 
-              disabled={orderMutation.isPending || !isOrderDetailsComplete || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
+              disabled={orderMutation.isPending || !isOrderDetailsComplete || !watchPaymentMethod || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
               className="flex-[2] py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-tighter"
             >
               {orderMutation.isPending ? "Processing..." : "Pay Now"}
