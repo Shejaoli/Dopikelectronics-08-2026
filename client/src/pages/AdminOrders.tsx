@@ -28,7 +28,7 @@ import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
-import { Search, X, Calendar as CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, FileText, Download, Eye, ShoppingCart, CheckCircle2, Clock, DollarSign, XCircle, AlertCircle, RefreshCcw, Info, Archive } from "lucide-react";
+import { Search, X, Calendar as CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, FileText, Download, Eye, ShoppingCart, CheckCircle2, Clock, DollarSign, XCircle, AlertCircle, RefreshCcw, Info, Archive, MapPin, Truck, Wallet, Mail, Hash, StickyNote } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -931,6 +931,18 @@ export default function AdminOrders() {
                   <p className="text-sm font-medium text-muted-foreground">Customer Phone</p>
                   <p className="text-base">{selectedOrder.customerPhone}</p>
                 </div>
+                {selectedOrder.customerEmail && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Customer Email</p>
+                    <p className="text-base">{selectedOrder.customerEmail}</p>
+                  </div>
+                )}
+                {selectedOrder.trackingCode && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1"><Hash className="h-3 w-3" /> Tracking Code</p>
+                    <p className="text-base font-mono font-semibold tracking-wider">{selectedOrder.trackingCode}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Order Date</p>
                   <p className="text-base">{format(new Date(selectedOrder.createdAt), "PPpp")}</p>
@@ -1037,6 +1049,62 @@ export default function AdminOrders() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/30">
+                <h4 className="col-span-2 font-semibold text-sm text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Truck className="h-4 w-4" /> Delivery & Fulfillment
+                </h4>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Order Type</p>
+                  <p className="text-base">{selectedOrder.orderType || "Delivery"}</p>
+                </div>
+                {(selectedOrder.orderDate || selectedOrder.orderTime) && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
+                    <p className="text-base">{[selectedOrder.orderDate, selectedOrder.orderTime].filter(Boolean).join(" · ")}</p>
+                  </div>
+                )}
+                {(selectedOrder.deliveryProvince || selectedOrder.deliveryDistrict || selectedOrder.deliverySector || selectedOrder.deliveryCell || selectedOrder.deliveryLandmark || selectedOrder.deliveryLocation) && (
+                  <div className="col-span-2">
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> Delivery Address</p>
+                    <p className="text-base">
+                      {[selectedOrder.deliveryDistrict, selectedOrder.deliverySector, selectedOrder.deliveryCell].filter(Boolean).join(", ") || selectedOrder.deliveryLocation}
+                    </p>
+                    {selectedOrder.deliveryLandmark && (
+                      <p className="text-sm text-muted-foreground">Landmark: {selectedOrder.deliveryLandmark}</p>
+                    )}
+                    {selectedOrder.deliveryLocation && (selectedOrder.deliveryProvince || selectedOrder.deliveryDistrict) && (
+                      <p className="text-sm text-muted-foreground">{selectedOrder.deliveryLocation}</p>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery Fee</p>
+                  <p className="text-base">{(selectedOrder.deliveryFee ?? 0) > 0 ? formatCurrency(selectedOrder.deliveryFee ?? 0) : "—"}</p>
+                </div>
+                {selectedOrder.orderNotes && (
+                  <div className="col-span-2">
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1"><StickyNote className="h-3 w-3" /> Order Notes</p>
+                    <p className="text-base whitespace-pre-wrap">{selectedOrder.orderNotes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/30">
+                <h4 className="col-span-2 font-semibold text-sm text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Wallet className="h-4 w-4" /> Payment
+                </h4>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Payment Method</p>
+                  <p className="text-base">{selectedOrder.paymentMethod || "—"}</p>
+                </div>
+                {selectedOrder.paymentReference && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Paying-From Number</p>
+                    <p className="text-base font-mono font-semibold">{selectedOrder.paymentReference}</p>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <h4 className="font-semibold mb-2 text-sm text-muted-foreground uppercase tracking-wider">Order Items</h4>
                 <div className="border rounded-lg overflow-hidden bg-card">
@@ -1115,7 +1183,19 @@ export default function AdminOrders() {
                     {showWhatsappPreview ? "Send Message Now" : "Preview WhatsApp Update"}
                   </Button>
                 </div>
-                <div className="bg-primary/5 border border-primary/10 rounded-lg px-6 py-3 text-right min-w-[200px]">
+                <div className="bg-primary/5 border border-primary/10 rounded-lg px-6 py-3 text-right min-w-[200px] space-y-1">
+                  {(selectedOrder.deliveryFee ?? 0) > 0 && (
+                    <div className="flex justify-between gap-6 text-sm text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(selectedOrder.totalAmount - (selectedOrder.deliveryFee ?? 0))}</span>
+                    </div>
+                  )}
+                  {(selectedOrder.deliveryFee ?? 0) > 0 && (
+                    <div className="flex justify-between gap-6 text-sm text-muted-foreground">
+                      <span>Delivery Fee</span>
+                      <span>{formatCurrency(selectedOrder.deliveryFee ?? 0)}</span>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest mb-1">Total Amount</p>
                   <p className="text-2xl font-bold text-primary">{formatCurrency(selectedOrder.totalAmount)}</p>
                 </div>
