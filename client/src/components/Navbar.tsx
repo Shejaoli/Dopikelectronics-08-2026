@@ -9,6 +9,7 @@ import type { Product } from "@shared/schema";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +46,8 @@ export function Navbar() {
       } catch { return null; }
     },
   });
+
+  const { wishlist } = useWishlist();
 
   const logoutMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/customer/logout", {}),
@@ -152,6 +155,7 @@ export function Navbar() {
   ];
 
   const additionalPages = [
+    { name: "Wishlist", href: "/wishlist", icon: Heart },
     { name: "About Us", href: "/about", icon: Info },
     { name: "Help & Support", href: "/contact", icon: HelpCircle },
     { name: "Shop All Products", href: "/shop", icon: ShoppingBag },
@@ -389,6 +393,15 @@ export function Navbar() {
                 <span className="hidden xl:inline">Sign In</span>
               </Link>
             )}
+            <Link href="/wishlist" className="relative flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:text-primary" title="Wishlist">
+              <Heart className="h-4 w-4" />
+              <span className="hidden xl:inline">Wishlist</span>
+              {customer && wishlist.length > 0 && (
+                <span className="absolute -top-2 -right-2 xl:static xl:ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
+                  {wishlist.length}
+                </span>
+              )}
+            </Link>
             <ThemeToggle />
             <CartDrawer />
           </div>

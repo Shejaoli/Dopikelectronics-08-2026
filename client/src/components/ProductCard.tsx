@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, Star, Eye, GitCompare } from "lucide-react";
+import { ShoppingCart, Star, Eye, GitCompare, Heart } from "lucide-react";
 import { Product } from "@shared/schema";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { QuickViewModal } from "./QuickViewModal";
 import { useCompare } from "@/contexts/CompareContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 interface ProductCardProps {
   product: Product;
@@ -28,6 +29,8 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
   const [showQuickView, setShowQuickView] = useState(false);
   const { addToCompare, removeFromCompare, isInCompare } = useCompare();
   const inCompare = isInCompare(product.id);
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const inWishlist = isInWishlist(product.id);
   const [, setLocation] = useLocation();
 
   const formatPrice = (price: number) => {
@@ -130,6 +133,18 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
             aria-label="Compare"
           >
             <GitCompare className="h-3 w-3" />
+          </button>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleWishlist(product); }}
+            data-testid={`button-wishlist-${product.id}`}
+            className={`flex h-6 w-6 items-center justify-center rounded-full backdrop-blur-md shadow ring-1 transition-all active:scale-90 ${
+              inWishlist
+                ? "bg-red-500 text-white ring-red-500/20"
+                : "bg-white/90 dark:bg-background/90 text-foreground ring-black/5 hover:bg-red-500/10"
+            }`}
+            aria-label="Wishlist"
+          >
+            <Heart className={`h-3 w-3 ${inWishlist ? "fill-white" : ""}`} />
           </button>
         </div>
 

@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect, lazy, Suspense, CSSProperties } from "react";
 import { Helmet } from "react-helmet-async";
 import { CompareProvider } from "@/contexts/CompareContext";
+import { WishlistProvider } from "@/contexts/WishlistContext";
 import { CompareBar } from "@/components/CompareBar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 
@@ -26,6 +27,7 @@ const _deals        = import("@/pages/Deals");
 const _checkout     = import("@/pages/Checkout");
 const _trackOrder   = import("@/pages/TrackOrder");
 const _myOrders     = import("@/pages/MyOrders");
+const _wishlist     = import("@/pages/Wishlist");
 const _orderLookup  = import("@/pages/OrderLookup");
 const _about        = import("@/pages/About");
 const _contact      = import("@/pages/Contact");
@@ -51,6 +53,7 @@ const Cart                = lazy(() => _cart);
 const Checkout            = lazy(() => _checkout);
 const TrackOrder          = lazy(() => _trackOrder);
 const MyOrders            = lazy(() => _myOrders);
+const Wishlist            = lazy(() => _wishlist);
 const OrderLookup         = lazy(() => _orderLookup);
 const About               = lazy(() => _about);
 const Contact             = lazy(() => _contact);
@@ -193,6 +196,7 @@ function Router() {
           <Route path="/order-success" component={Checkout} />
           <Route path="/track-order" component={TrackOrder} />
           <Route path="/my-orders" component={MyOrders} />
+          <Route path="/wishlist" component={Wishlist} />
           <Route path="/orders/lookup" component={OrderLookup} />
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />
@@ -213,12 +217,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <CompareProvider>
+        <WishlistProvider>
           <Toaster />
           <div className="pb-16 lg:pb-0">
             <Router />
           </div>
           <CompareBar />
           <MobileBottomNav />
+        </WishlistProvider>
         </CompareProvider>
       </TooltipProvider>
     </QueryClientProvider>

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { products, admins, orders, auditLogs, videos, siteVisitors, homeSections, notFoundLogs, reviews, featuredSlides, couponCodes, customers, deliveryFees, type Product, type InsertProduct, type Admin, type InsertAdmin, type Order, type InsertOrder, type AuditLog, type InsertAuditLog, type Video, type InsertVideo, type SiteVisitor, type InsertSiteVisitor, type HomeSection, type InsertHomeSection, type NotFoundLog, type InsertNotFoundLog, type Review, type InsertReview, type FeaturedSlide, type InsertFeaturedSlide, type CouponCode, type InsertCouponCode, type Customer, type DeliveryFee } from "@shared/schema";
+import { products, admins, orders, auditLogs, videos, siteVisitors, homeSections, notFoundLogs, reviews, featuredSlides, couponCodes, customers, deliveryFees, wishlists, type Product, type InsertProduct, type Admin, type InsertAdmin, type Order, type InsertOrder, type AuditLog, type InsertAuditLog, type Video, type InsertVideo, type SiteVisitor, type InsertSiteVisitor, type HomeSection, type InsertHomeSection, type NotFoundLog, type InsertNotFoundLog, type Review, type InsertReview, type FeaturedSlide, type InsertFeaturedSlide, type CouponCode, type InsertCouponCode, type Customer, type DeliveryFee, type Wishlist } from "@shared/schema";
 import { eq, like, and, desc, gte, lte, or, count, countDistinct } from "drizzle-orm";
 
 export interface PaginatedResult<T> {
@@ -136,6 +136,11 @@ export interface IStorage {
   getDeliveryFees(): Promise<DeliveryFee[]>;
   getDeliveryFeeBySector(sector: string): Promise<DeliveryFee | undefined>;
   updateDeliveryFee(sector: string, fee: number): Promise<DeliveryFee>;
+
+  // Wishlist methods
+  getWishlistByCustomerId(customerId: number): Promise<(Wishlist & { product: Product })[]>;
+  addToWishlist(customerId: number, productId: number): Promise<Wishlist>;
+  removeFromWishlist(customerId: number, productId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -981,6 +986,29 @@ export class DatabaseStorage implements IStorage {
 
   async getOrdersByCustomerEmail(email: string): Promise<Order[]> {
     return db.select().from(orders).where(eq(orders.customerEmail, email.toLowerCase())).orderBy(desc(orders.createdAt));
+  }
+
+  async getWishlistByCustomerId(customerId: number): Promise<(Wishlist & { product: Product })[]> {
+    const rows = await db.select({ wishlist: wishlists, product: products })
+      .from(wishlists)
+      .innerJoin(products, eq(wishlists.productId, products.id))
+      .where(eq(wishlists.customerId, customerId))
+      .orderBy(desc(wishlists.createdAt));
+    return rows.map(r => ({ ...r.wishlist, product: r.product }));
+  }
+
+  async addToWishlist(customerId: number, productId: number): Promise<Wishlist> {
+    const [existing] = await db.select().from(wishlists)
+      .where(and(eq(wishlists.customerId, customerId), eq(wishlists.productId, productId)))
+      .limit(1);
+    if (existing) return existing;
+    const [created] = await db.insert(wishlists).values({ customerId, productId }).returning();
+    return created;
+  }
+
+  async removeFromWishlist(customerId: number, productId: number): Promise<void> {
+    await db.delete(wishlists)
+      .where(and(eq(wishlists.customerId, customerId), eq(wishlists.productId, productId)));
   }
 }
 

@@ -571,7 +571,56 @@ export async function registerRoutes(
     res.json({ message: "Logged out." });
   });
 
-  // ── Google OAuth ──────────────────────────────────────────────────────────
+  // ── Wishlist ──────────────────────────────────────────────────────────────
+
+  app.get("/api/wishlist", async (req, res) => {
+    try {
+      if (!req.session.customerId) {
+        return res.status(401).json({ message: "Not authenticated." });
+      }
+      const items = await storage.getWishlistByCustomerId(req.session.customerId);
+      res.json(items);
+    } catch (error) {
+      console.error("Get wishlist error:", error);
+      res.status(500).json({ message: "Failed to fetch wishlist." });
+    }
+  });
+
+  app.post("/api/wishlist", async (req, res) => {
+    try {
+      if (!req.session.customerId) {
+        return res.status(401).json({ message: "Not authenticated." });
+      }
+      const productId = Number(req.body.productId);
+      if (!productId) {
+        return res.status(400).json({ message: "productId is required." });
+      }
+      const item = await storage.addToWishlist(req.session.customerId, productId);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Add to wishlist error:", error);
+      res.status(500).json({ message: "Failed to add to wishlist." });
+    }
+  });
+
+  app.delete("/api/wishlist/:productId", async (req, res) => {
+    try {
+      if (!req.session.customerId) {
+        return res.status(401).json({ message: "Not authenticated." });
+      }
+      const productId = Number(req.params.productId);
+      if (!productId) {
+        return res.status(400).json({ message: "productId is required." });
+      }
+      await storage.removeFromWishlist(req.session.customerId, productId);
+      res.json({ message: "Removed from wishlist." });
+    } catch (error) {
+      console.error("Remove from wishlist error:", error);
+      res.status(500).json({ message: "Failed to remove from wishlist." });
+    }
+  });
+
+  // ── Google OAuth ───────────────────────────────────────────────────────────
 
   const getBaseUrl = () => {
     if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;

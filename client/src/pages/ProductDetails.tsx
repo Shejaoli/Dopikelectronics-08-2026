@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -28,6 +29,9 @@ export default function ProductDetails() {
   const byId = useProduct(isSlugBased ? 0 : numericId);
 
   const { data: product, isLoading, error } = isSlugBased ? bySlug : byId;
+
+  const { isInWishlist, toggleWishlist } = useWishlist();
+  const inWishlist = product ? isInWishlist(product.id) : false;
 
   const variations = (product?.variations as {
     storage?: { option: string; priceOffset: number; stock?: number }[];
@@ -354,7 +358,13 @@ export default function ProductDetails() {
               <span className="text-sm font-semibold text-foreground">{reviewStats.averageRating > 0 ? reviewStats.averageRating : "4.5"}</span>
               <span className="text-xs text-muted-foreground">({reviewStats.reviewCount > 0 ? reviewStats.reviewCount : "12"} reviews)</span>
               <div className="ml-auto flex items-center gap-2">
-                <button className="text-muted-foreground hover:text-red-500 transition-colors" title="Wishlist"><Heart className="h-4 w-4" /></button>
+                <button
+                  onClick={() => product && toggleWishlist(product)}
+                  className={`transition-colors ${inWishlist ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
+                  title="Wishlist"
+                >
+                  <Heart className={`h-4 w-4 ${inWishlist ? "fill-red-500" : ""}`} />
+                </button>
                 <button className="text-muted-foreground hover:text-primary transition-colors" title="Share"
                   onClick={() => { if (navigator.share) navigator.share({ title: product.name, url: window.location.href }); }}>
                   <Share2 className="h-4 w-4" />
@@ -746,7 +756,13 @@ export default function ProductDetails() {
                 <span className="text-[11px] text-gray-400">({reviewStats.reviewCount > 0 ? reviewStats.reviewCount : "12"} reviews)</span>
               </div>
               <div className="flex items-center gap-3">
-                <button className="text-gray-400 hover:text-red-500 transition-colors" title="Wishlist"><Heart className="h-5 w-5" /></button>
+                <button
+                  onClick={() => product && toggleWishlist(product)}
+                  className={`transition-colors ${inWishlist ? "text-red-500" : "text-gray-400 hover:text-red-500"}`}
+                  title="Wishlist"
+                >
+                  <Heart className={`h-5 w-5 ${inWishlist ? "fill-red-500" : ""}`} />
+                </button>
                 <button className="text-gray-400 hover:text-[#1565C0] transition-colors" title="Share"
                   onClick={() => { if (navigator.share) navigator.share({ title: product.name, url: window.location.href }); }}>
                   <Share2 className="h-5 w-5" />
