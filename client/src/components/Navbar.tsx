@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, ShoppingBag, Search, HelpCircle, Info, User, MapPin, ChevronRight, Flame, Smartphone, Laptop, Tablet, Watch, Gamepad2, Wrench, Home as HomeIcon, Smartphone as ElectronicsIcon, Layers, Heart, LogOut } from "lucide-react";
+import { Menu, X, ShoppingBag, Search, HelpCircle, Info, User, MapPin, ChevronRight, Flame, Smartphone, Laptop, Tablet, Watch, Gamepad2, Wrench, Home as HomeIcon, Smartphone as ElectronicsIcon, Layers, Heart, LogOut, Package } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "./ThemeToggle";
 import { CartDrawer } from "./CartDrawer";
@@ -277,6 +277,12 @@ export function Navbar() {
                         <span className="font-medium text-sm">Help</span>
                       </div>
                     </Link>
+                    <Link href="/order-history" onClick={() => setIsMenuOpen(false)}>
+                      <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium text-sm">Order History</span>
+                      </div>
+                    </Link>
                     {customer ? (
                       <button
                         onClick={() => { logoutMutation.mutate(); setIsMenuOpen(false); }}
@@ -401,6 +407,10 @@ export function Navbar() {
                   {wishlist.length}
                 </span>
               )}
+            </Link>
+            <Link href="/order-history" className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:text-primary" title="Order History">
+              <Package className="h-4 w-4" />
+              <span className="hidden xl:inline">Orders</span>
             </Link>
             <ThemeToggle />
             <CartDrawer />

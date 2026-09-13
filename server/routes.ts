@@ -571,6 +571,23 @@ export async function registerRoutes(
     res.json({ message: "Logged out." });
   });
 
+  app.get("/api/customer/orders", async (req, res) => {
+    try {
+      if (!req.session.customerId) {
+        return res.status(401).json({ message: "Not authenticated." });
+      }
+      const customer = await storage.getCustomerById(req.session.customerId);
+      if (!customer) {
+        return res.status(401).json({ message: "Session expired." });
+      }
+      const orders = await storage.getOrdersByCustomerEmail(customer.email);
+      res.json(orders);
+    } catch (error) {
+      console.error("Get customer orders error:", error);
+      res.status(500).json({ message: "Failed to fetch orders." });
+    }
+  });
+
   // ── Wishlist ──────────────────────────────────────────────────────────────
 
   app.get("/api/wishlist", async (req, res) => {

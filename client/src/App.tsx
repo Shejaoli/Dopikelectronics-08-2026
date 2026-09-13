@@ -28,6 +28,7 @@ const _checkout     = import("@/pages/Checkout");
 const _trackOrder   = import("@/pages/TrackOrder");
 const _myOrders     = import("@/pages/MyOrders");
 const _wishlist     = import("@/pages/Wishlist");
+const _orderHistory = import("@/pages/OrderHistory");
 const _orderLookup  = import("@/pages/OrderLookup");
 const _about        = import("@/pages/About");
 const _contact      = import("@/pages/Contact");
@@ -54,6 +55,7 @@ const Checkout            = lazy(() => _checkout);
 const TrackOrder          = lazy(() => _trackOrder);
 const MyOrders            = lazy(() => _myOrders);
 const Wishlist            = lazy(() => _wishlist);
+const OrderHistory        = lazy(() => _orderHistory);
 const OrderLookup         = lazy(() => _orderLookup);
 const About               = lazy(() => _about);
 const Contact             = lazy(() => _contact);
@@ -65,7 +67,7 @@ const CustomerRegister    = lazy(() => _customerReg);
 const NotFound            = lazy(() => _notFound);
 
 const BASE_URL = 'https://dopikelectronics.com';
-const NO_INDEX_PREFIXES = ['/cart', '/checkout', '/track-order', '/my-orders', '/orders', '/admin'];
+const NO_INDEX_PREFIXES = ['/cart', '/checkout', '/track-order', '/my-orders', '/order-history', '/orders', '/admin'];
 
 /* ── Skeleton: mirrors index.html exactly so swap is seamless ── */
 const SK: CSSProperties = {
@@ -197,6 +199,7 @@ function Router() {
           <Route path="/track-order" component={TrackOrder} />
           <Route path="/my-orders" component={MyOrders} />
           <Route path="/wishlist" component={Wishlist} />
+          <Route path="/order-history" component={OrderHistory} />
           <Route path="/orders/lookup" component={OrderLookup} />
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />
