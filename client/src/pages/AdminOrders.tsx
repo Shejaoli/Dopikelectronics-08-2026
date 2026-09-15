@@ -1075,6 +1075,16 @@ export default function AdminOrders() {
                     {selectedOrder.deliveryLocation && (selectedOrder.deliveryProvince || selectedOrder.deliveryDistrict) && (
                       <p className="text-sm text-muted-foreground">{selectedOrder.deliveryLocation}</p>
                     )}
+                    {selectedOrder.deliveryLatitude && selectedOrder.deliveryLongitude && (
+                      <a
+                        href={`https://www.google.com/maps?q=${selectedOrder.deliveryLatitude},${selectedOrder.deliveryLongitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline underline-offset-2 mt-1"
+                      >
+                        <MapPin className="h-3 w-3" /> View GPS Pin on Map
+                      </a>
+                    )}
                   </div>
                 )}
                 <div>

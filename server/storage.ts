@@ -411,6 +411,8 @@ export class DatabaseStorage implements IStorage {
         deliverySector: order.deliverySector || null,
         deliveryCell: order.deliveryCell || null,
         deliveryLandmark: order.deliveryLandmark || null,
+        deliveryLatitude: order.deliveryLatitude || null,
+        deliveryLongitude: order.deliveryLongitude || null,
         orderType: order.orderType || "Delivery",
         orderDate: order.orderDate || null,
         orderTime: order.orderTime || null,

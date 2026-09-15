@@ -91,6 +91,8 @@ const shippingSchema = z.object({
   sector: z.string().optional(),
   cell: z.string().optional(),
   landmark: z.string().optional(),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
   phone: z.string().min(1, "Phone number is required"),
 }).superRefine((data, ctx) => {
   if (isKigaliDistrict(data.district) && !data.sector) {
@@ -241,6 +243,8 @@ function CheckoutForm({
         deliverySector: shippingData.sector || null,
         deliveryCell: shippingData.cell || null,
         deliveryLandmark: shippingData.landmark || null,
+        deliveryLatitude: shippingData.latitude || null,
+        deliveryLongitude: shippingData.longitude || null,
         orderType: data.orderType,
         orderDate: data.orderDate ? format(data.orderDate, "PPP") : null,
         orderTime: data.orderTime,
@@ -703,10 +707,51 @@ function CheckoutShipping({
   const watchProvince = shippingForm.watch("province");
   const watchDistrict = shippingForm.watch("district");
   const watchSector = shippingForm.watch("sector");
+  const watchLatitude = shippingForm.watch("latitude");
+  const watchLongitude = shippingForm.watch("longitude");
   const districtOptions = watchProvince ? DISTRICTS_BY_PROVINCE[watchProvince] || [] : [];
   const sectorOptions = watchDistrict && isKigaliDistrict(watchDistrict) ? KIGALI_SECTORS_BY_DISTRICT[watchDistrict] || [] : [];
   const showSectorAndCell = !!watchDistrict && isKigaliDistrict(watchDistrict);
   const selectedSectorFee = watchSector ? deliveryFees?.find((f) => f.sector === watchSector)?.fee : undefined;
+  const { toast } = useToast();
+  const [gpsLoading, setGpsLoading] = useState(false);
+
+  const handleShareLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        variant: "destructive",
+        title: "Location not supported",
+        description: "Your browser doesn't support sharing GPS location. You can still continue using the address fields above.",
+      });
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        shippingForm.setValue("latitude", String(position.coords.latitude));
+        shippingForm.setValue("longitude", String(position.coords.longitude));
+        setGpsLoading(false);
+        toast({
+          title: "Location shared",
+          description: "Your GPS pin will help the delivery person find you more easily.",
+        });
+      },
+      () => {
+        setGpsLoading(false);
+        toast({
+          variant: "destructive",
+          title: "Couldn't get your location",
+          description: "No problem \u2014 the address fields above are all that's needed to deliver your order.",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleClearLocation = () => {
+    shippingForm.setValue("latitude", "");
+    shippingForm.setValue("longitude", "");
+  };
 
   return (
     <Form {...shippingForm}>
@@ -932,6 +977,33 @@ function CheckoutShipping({
                 )}
               />
             </div>
+            <div className="md:col-span-2">
+              {watchLatitude && watchLongitude ? (
+                <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+                  <span className="flex items-center gap-2 font-medium text-foreground">
+                    <MapPin className="h-4 w-4 text-primary" /> GPS location shared
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearLocation}
+                    className="text-xs font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleShareLocation}
+                  disabled={gpsLoading}
+                  className="h-12 w-full rounded-xl border-2 gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  {gpsLoading ? "Getting your location\u2026" : "Share My GPS Location (optional)"}
+                </Button>
+              )}
+            </div>
             {watchProvince && (
               <div className="md:col-span-2 rounded-xl border-2 border-primary/20 bg-primary/5 p-4 text-sm">
                 {watchProvince === "Kigali City" ? (
@@ -1107,6 +1179,8 @@ export default function Checkout() {
       sector: "",
       cell: "",
       landmark: "",
+      latitude: "",
+      longitude: "",
       phone: "",
     },
   });
@@ -1152,6 +1226,8 @@ export default function Checkout() {
         sector: "",
         cell: "",
         landmark: "",
+        latitude: "",
+        longitude: "",
       });
     }
   }, [customer]);

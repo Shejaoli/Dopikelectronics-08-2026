@@ -61,6 +61,8 @@ export const orders = pgTable("orders", {
   deliverySector: text("delivery_sector"),
   deliveryCell: text("delivery_cell"),
   deliveryLandmark: text("delivery_landmark"),
+  deliveryLatitude: text("delivery_latitude"),
+  deliveryLongitude: text("delivery_longitude"),
   orderType: text("order_type").default("Delivery"), // Pickup or Delivery
   orderDate: text("order_date"),
   orderTime: text("order_time"),
