@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { products, admins, orders, auditLogs, videos, siteVisitors, homeSections, notFoundLogs, reviews, featuredSlides, couponCodes, customers, deliveryFees, wishlists, type Product, type InsertProduct, type Admin, type InsertAdmin, type Order, type InsertOrder, type AuditLog, type InsertAuditLog, type Video, type InsertVideo, type SiteVisitor, type InsertSiteVisitor, type HomeSection, type InsertHomeSection, type NotFoundLog, type InsertNotFoundLog, type Review, type InsertReview, type FeaturedSlide, type InsertFeaturedSlide, type CouponCode, type InsertCouponCode, type Customer, type DeliveryFee, type Wishlist } from "@shared/schema";
+import { products, admins, orders, auditLogs, videos, siteVisitors, homeSections, notFoundLogs, reviews, featuredSlides, couponCodes, customers, deliveryFees, wishlists, pushSubscriptions, type Product, type InsertProduct, type Admin, type InsertAdmin, type Order, type InsertOrder, type AuditLog, type InsertAuditLog, type Video, type InsertVideo, type SiteVisitor, type InsertSiteVisitor, type HomeSection, type InsertHomeSection, type NotFoundLog, type InsertNotFoundLog, type Review, type InsertReview, type FeaturedSlide, type InsertFeaturedSlide, type CouponCode, type InsertCouponCode, type Customer, type DeliveryFee, type Wishlist, type PushSubscription } from "@shared/schema";
 import { eq, like, and, desc, gte, lte, or, count, countDistinct } from "drizzle-orm";
 
 export interface PaginatedResult<T> {
@@ -141,6 +141,11 @@ export interface IStorage {
   getWishlistByCustomerId(customerId: number): Promise<(Wishlist & { product: Product })[]>;
   addToWishlist(customerId: number, productId: number): Promise<Wishlist>;
   removeFromWishlist(customerId: number, productId: number): Promise<void>;
+
+  // Push subscription methods
+  createPushSubscription(adminId: number, endpoint: string, p256dh: string, auth: string): Promise<PushSubscription>;
+  getAllPushSubscriptions(): Promise<PushSubscription[]>;
+  deletePushSubscriptionByEndpoint(endpoint: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1011,6 +1016,23 @@ export class DatabaseStorage implements IStorage {
   async removeFromWishlist(customerId: number, productId: number): Promise<void> {
     await db.delete(wishlists)
       .where(and(eq(wishlists.customerId, customerId), eq(wishlists.productId, productId)));
+  }
+
+  async createPushSubscription(adminId: number, endpoint: string, p256dh: string, auth: string): Promise<PushSubscription> {
+    const [existing] = await db.select().from(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, endpoint))
+      .limit(1);
+    if (existing) return existing;
+    const [created] = await db.insert(pushSubscriptions).values({ adminId, endpoint, p256dh, auth }).returning();
+    return created;
+  }
+
+  async getAllPushSubscriptions(): Promise<PushSubscription[]> {
+    return await db.select().from(pushSubscriptions);
+  }
+
+  async deletePushSubscriptionByEndpoint(endpoint: string): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
   }
 }
 

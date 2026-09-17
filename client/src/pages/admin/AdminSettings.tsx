@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +8,125 @@ import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, ShieldCheck, User, KeyRound, Mail, Fingerprint } from "lucide-react";
+import { Loader2, ShieldCheck, User, KeyRound, Mail, Fingerprint, Bell } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function NotificationsCard() {
+  const { toast } = useToast();
+  const [supported, setSupported] = useState(true);
+  const [subscribed, setSubscribed] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setSupported(false);
+        setChecking(false);
+        return;
+      }
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js");
+        const existing = await registration.pushManager.getSubscription();
+        setSubscribed(!!existing);
+      } catch (error) {
+        console.error("Push support check failed:", error);
+      } finally {
+        setChecking(false);
+      }
+    })();
+  }, []);
+
+  const enable = async () => {
+    setBusy(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        toast({ title: "Notifications blocked", description: "Enable notifications for this site in your browser settings.", variant: "destructive" });
+        return;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const keyRes = await apiRequest("GET", "/api/push/vapid-public-key");
+      const { publicKey } = await keyRes.json();
+      const applicationServerKey = urlBase64ToUint8Array(publicKey).buffer as ArrayBuffer;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+      await apiRequest("POST", "/api/admin/push-subscribe", subscription.toJSON());
+      setSubscribed(true);
+      toast({ title: "Push notifications enabled" });
+    } catch (error: any) {
+      toast({ title: "Could not enable notifications", description: error.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disable = async () => {
+    setBusy(true);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await apiRequest("POST", "/api/admin/push-unsubscribe", { endpoint: subscription.endpoint });
+        await subscription.unsubscribe();
+      }
+      setSubscribed(false);
+      toast({ title: "Push notifications disabled" });
+    } catch (error: any) {
+      toast({ title: "Could not disable notifications", description: error.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="border-none shadow-xl bg-card/50 backdrop-blur overflow-hidden">
+      <CardHeader className="bg-primary/5 border-b border-primary/10">
+        <CardTitle className="flex items-center gap-2 text-xl font-black uppercase tracking-tight">
+          <Bell className="h-5 w-5 text-primary" /> Notifications
+        </CardTitle>
+        <CardDescription>Get alerted on new orders and new customer sign-ups.</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between p-4 bg-muted/30 rounded-2xl border border-border/50">
+          <div className="space-y-1">
+            <Label className="text-sm font-bold">Browser Push Alerts</Label>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+              {!supported ? "Not supported on this browser" : checking ? "Checking status..." : subscribed ? "Enabled on this device" : "Disabled on this device"}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant={subscribed ? "outline" : "default"}
+            className="font-bold uppercase tracking-widest border-2"
+            disabled={!supported || checking || busy}
+            onClick={subscribed ? disable : enable}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {subscribed ? "Disable" : "Enable"}
+          </Button>
+        </div>
+        <p className="mt-4 text-[10px] text-muted-foreground italic leading-relaxed">
+          New order and new customer emails go to every address listed under Admins, regardless of this setting.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
 const accountSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -135,6 +252,8 @@ export default function AdminSettings() {
               </p>
             </CardContent>
           </Card>
+
+          <NotificationsCard />
         </div>
 
         <Card className="border-none shadow-xl bg-card/50 backdrop-blur">

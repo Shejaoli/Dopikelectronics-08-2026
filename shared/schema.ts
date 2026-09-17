@@ -246,5 +246,18 @@ export const insertDeliveryFeeSchema = createInsertSchema(deliveryFees).omit({ i
 export type DeliveryFee = typeof deliveryFees.$inferSelect;
 export type InsertDeliveryFee = z.infer<typeof insertDeliveryFeeSchema>;
 
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id").notNull(),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
+
 // Types for API
 export type ProductResponse = Product;

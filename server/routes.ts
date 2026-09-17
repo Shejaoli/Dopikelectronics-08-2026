@@ -18,6 +18,7 @@ import express from "express";
 import Stripe from "stripe";
 import { Buffer } from "buffer";
 import ffmpeg from "fluent-ffmpeg";
+import { notifyNewOrder, notifyNewCustomer } from "./notifications";
 
 // Video compression utility
 async function compressVideo(inputPath: string, outputPath: string): Promise<void> {
@@ -518,6 +519,7 @@ export async function registerRoutes(
       const passwordHash = await hashPassword(password);
       const customer = await storage.createCustomer({ fullName, email, phone, passwordHash });
       req.session.customerId = customer.id;
+      notifyNewCustomer(customer).catch(err => console.error("notifyNewCustomer failed:", err));
       const { passwordHash: _, ...safe } = customer;
       res.status(201).json(safe);
     } catch (error) {
@@ -1198,6 +1200,7 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
         deliveryFee,
         totalAmount: calculatedTotal
       });
+      notifyNewOrder(order).catch(err => console.error("notifyNewOrder failed:", err));
       res.status(201).json(order);
     } catch (error) {
       console.error("Order creation error:", error);
@@ -1917,6 +1920,45 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       res.json(updated);
     } catch (e: any) {
       res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Push notifications: public VAPID key (needed by browser before subscribing)
+  app.get("/api/push/vapid-public-key", (req, res) => {
+    const key = process.env.VAPID_PUBLIC_KEY;
+    if (!key) {
+      return res.status(503).json({ message: "Push notifications are not configured yet." });
+    }
+    res.json({ publicKey: key });
+  });
+
+  // Push notifications: admin subscribes this browser
+  app.post("/api/admin/push-subscribe", requireAdminAuth, async (req, res) => {
+    try {
+      const { endpoint, keys } = req.body;
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        return res.status(400).json({ message: "Invalid subscription payload." });
+      }
+      const subscription = await storage.createPushSubscription(req.session.adminId!, endpoint, keys.p256dh, keys.auth);
+      res.status(201).json(subscription);
+    } catch (error) {
+      console.error("Push subscribe error:", error);
+      res.status(500).json({ message: "Failed to save push subscription." });
+    }
+  });
+
+  // Push notifications: admin unsubscribes this browser
+  app.post("/api/admin/push-unsubscribe", requireAdminAuth, async (req, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ message: "Endpoint is required." });
+      }
+      await storage.deletePushSubscriptionByEndpoint(endpoint);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Push unsubscribe error:", error);
+      res.status(500).json({ message: "Failed to remove push subscription." });
     }
   });
 
