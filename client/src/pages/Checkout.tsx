@@ -12,7 +12,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, MessageCircle, Truck, CreditCard as CardIcon, Wallet, Calendar as CalendarIcon, Clock, Package, ArrowLeft, ArrowRight, ChevronRight, LogIn, UserPlus, ShieldCheck, Copy, MapPin } from "lucide-react";
+import { CheckCircle2, MessageCircle, Truck, CreditCard as CardIcon, Wallet, Calendar as CalendarIcon, Package, ArrowLeft, ArrowRight, ChevronRight, Copy, MapPin } from "lucide-react";
 import { SiVisa, SiMastercard } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
@@ -1150,10 +1150,9 @@ export default function Checkout() {
   const [location, setLocation] = useLocation();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [shippingData, setShippingData] = useState<ShippingForm | null>(null);
-  const [guestContinue, setGuestContinue] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<any>(null);
 
-  const { data: customer, isLoading: customerLoading } = useQuery<any>({
+  const { data: customer } = useQuery<any>({
     queryKey: ["/api/customer/me"],
     queryFn: async () => {
       const res = await fetch("/api/customer/me", { credentials: "include" });
@@ -1288,73 +1287,9 @@ export default function Checkout() {
     );
   }
 
-  // Auth gate — offer sign-in benefits, but let guests continue too
-  if (!customerLoading && !customer && !guestContinue) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center px-4 py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-md text-center space-y-8"
-          >
-            <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-              <ShieldCheck className="w-10 h-10 text-primary" />
-            </div>
-            <div className="space-y-3">
-              <h1 className="text-3xl font-black tracking-tighter">Sign in to checkout faster</h1>
-              <p className="text-muted-foreground text-base">
-                Your details will be pre-filled at checkout — or continue as a guest.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-accent/20 p-4 text-left space-y-3">
-              <div className="flex items-start gap-3">
-                <Package className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <span className="text-sm text-muted-foreground">Track your orders anytime from your account</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <Clock className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <span className="text-sm text-muted-foreground">Faster checkout next time — details saved</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <span className="text-sm text-muted-foreground">See your full order history and reorder easily</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Link href={`/login?redirect=${encodeURIComponent(location)}`}>
-                <Button className="w-full h-14 text-lg font-black rounded-2xl shadow-xl shadow-primary/20">
-                  <LogIn className="mr-2 h-5 w-5" />
-                  Sign In
-                </Button>
-              </Link>
-              <Link href={`/register?redirect=${encodeURIComponent(location)}`}>
-                <Button variant="outline" className="w-full h-14 text-lg font-bold rounded-2xl">
-                  <UserPlus className="mr-2 h-5 w-5" />
-                  Create Account
-                </Button>
-              </Link>
-              <Button
-                variant="ghost"
-                className="w-full h-12 text-base font-semibold rounded-2xl"
-                onClick={() => setGuestContinue(true)}
-                data-testid="button-continue-guest"
-              >
-                Continue as Guest
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Already in your cart? No worries — items are saved.
-            </p>
-          </motion.div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+  // Auth gate removed (Phase 9): guests and logged-in customers alike go
+  // straight to the shipping form. Logged-in customers still get their
+  // details auto-filled (see the effect above) — no login UI is shown here.
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
