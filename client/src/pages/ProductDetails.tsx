@@ -175,7 +175,18 @@ export default function ProductDetails() {
       quantity, storage: selectedStorage, color: selectedColor, imageUrl: product.imageUrl,
     };
     const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");
-    localStorage.setItem("cart", JSON.stringify([...existingCart, cartItem]));
+    const matchIndex = existingCart.findIndex((item: any) =>
+      item.productId === cartItem.productId &&
+      item.storage === cartItem.storage &&
+      item.color === cartItem.color
+    );
+    if (matchIndex > -1) {
+      existingCart[matchIndex].quantity += cartItem.quantity;
+      existingCart[matchIndex].totalPrice = existingCart[matchIndex].quantity * existingCart[matchIndex].price;
+    } else {
+      existingCart.push(cartItem);
+    }
+    localStorage.setItem("cart", JSON.stringify(existingCart));
     const viewedIds = JSON.parse(localStorage.getItem("recentlyViewed") || "[]") as number[];
     localStorage.setItem("recentlyViewed", JSON.stringify([product.id, ...viewedIds.filter(id => id !== product.id)].slice(0, 10)));
     window.dispatchEvent(new Event("storage"));

@@ -46,7 +46,18 @@ function QuickViewContent({ product, onClose }: { product: Product; onClose: () 
       imageUrl: product.imageUrl,
     };
     const existing = JSON.parse(localStorage.getItem("cart") || "[]");
-    localStorage.setItem("cart", JSON.stringify([...existing, cartItem]));
+    const matchIndex = existing.findIndex((item: any) =>
+      item.productId === cartItem.productId &&
+      item.storage === cartItem.storage &&
+      item.color === cartItem.color
+    );
+    if (matchIndex > -1) {
+      existing[matchIndex].quantity += cartItem.quantity;
+      existing[matchIndex].totalPrice = existing[matchIndex].quantity * existing[matchIndex].price;
+    } else {
+      existing.push(cartItem);
+    }
+    localStorage.setItem("cart", JSON.stringify(existing));
     window.dispatchEvent(new Event("storage"));
     toast({ title: "Added to cart", description: `${product.name} added to your cart.` });
     onClose();

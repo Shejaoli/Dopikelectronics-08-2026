@@ -91,7 +91,7 @@ export default function Cart() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-12 lg:items-start lg:gap-10">
             {/* Cart Items */}
-            <div className="lg:col-span-8 space-y-4">
+            <div className="order-2 lg:order-1 lg:col-span-8 space-y-4">
               <AnimatePresence mode="popLayout">
                 {cart.map((item, index) => (
                   <motion.div
@@ -161,7 +161,7 @@ export default function Cart() {
             </div>
 
             {/* Order Summary */}
-            <div className="lg:col-span-4">
+            <div className="order-1 lg:order-2 lg:col-span-4">
               <div className="sticky top-24 rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-sm">
                 <h2 className="text-xl font-bold text-foreground mb-4">Order Summary</h2>
                 
