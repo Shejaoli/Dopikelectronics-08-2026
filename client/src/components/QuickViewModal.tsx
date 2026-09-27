@@ -39,6 +39,7 @@ function QuickViewContent({ product, onClose }: { product: Product; onClose: () 
       productId: product.id,
       name: product.name,
       price: dealPrice,
+      originalPrice: hasDiscount ? product.price : undefined,
       totalPrice: dealPrice,
       quantity: 1,
       storage: "",

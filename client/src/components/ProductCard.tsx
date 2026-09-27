@@ -48,6 +48,7 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
       productId: product.id,
       name: product.name,
       price: dealPrice,
+      originalPrice: hasDiscount ? product.price : undefined,
       totalPrice: dealPrice,
       quantity: 1,
       storage: "",

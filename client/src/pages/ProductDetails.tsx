@@ -171,7 +171,7 @@ export default function ProductDetails() {
     const itemTotalPrice = (product.price + currentPriceOffset) * quantity;
     const cartItem = {
       productId: product.id, name: product.name,
-      price: itemTotalPrice / quantity, totalPrice: itemTotalPrice,
+      price: itemTotalPrice / quantity, originalPrice: product.hotDealDiscount > 0 ? product.price : undefined, totalPrice: itemTotalPrice,
       quantity, storage: selectedStorage, color: selectedColor, imageUrl: product.imageUrl,
     };
     const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -199,7 +199,7 @@ export default function ProductDetails() {
     const itemTotalPrice = (product.price + currentPriceOffset) * quantity;
     const cartItem = {
       productId: product.id, name: product.name,
-      price: itemTotalPrice / quantity, totalPrice: itemTotalPrice,
+      price: itemTotalPrice / quantity, originalPrice: product.hotDealDiscount > 0 ? product.price : undefined, totalPrice: itemTotalPrice,
       quantity, storage: selectedStorage, color: selectedColor, imageUrl: product.imageUrl,
     };
     // Buy Now takes this single item straight to checkout (replaces cart, matching "buy now" intent)

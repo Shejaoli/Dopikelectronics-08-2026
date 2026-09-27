@@ -12,6 +12,7 @@ interface CartItem {
   productId: number;
   name: string;
   price: number;
+  originalPrice?: number;
   totalPrice: number;
   quantity: number;
   storage: string;
@@ -44,6 +45,11 @@ export default function Cart() {
     setCart(newCart);
     localStorage.setItem("cart", JSON.stringify(newCart));
     window.dispatchEvent(new Event("storage"));
+  };
+
+  const goToCheckout = () => {
+    localStorage.removeItem("checkout_shipping");
+    setLocation("/checkout/shipping");
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -91,7 +97,7 @@ export default function Cart() {
         ) : (
           <div className="grid gap-6 lg:grid-cols-12 lg:items-start lg:gap-10">
             {/* Cart Items */}
-            <div className="order-2 lg:order-1 lg:col-span-8 space-y-4">
+            <div className="lg:col-span-8 space-y-4">
               <AnimatePresence mode="popLayout">
                 {cart.map((item, index) => (
                   <motion.div
@@ -100,9 +106,9 @@ export default function Cart() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95, x: -20 }}
-                    className="group relative flex gap-6 p-4 sm:p-6 bg-card rounded-2xl border border-border hover:shadow-md transition-all"
+                    className="group relative flex gap-4 p-4 sm:p-5 bg-card rounded-2xl border border-border hover:shadow-md transition-all"
                   >
-                    <div className="h-24 w-24 sm:h-32 sm:w-32 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-white p-4">
+                    <div className="h-20 w-20 sm:h-28 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-white p-3">
                       <img
                         src={item.imageUrl}
                         alt={item.name}
@@ -110,16 +116,26 @@ export default function Cart() {
                       />
                     </div>
 
-                    <div className="flex flex-1 flex-col justify-between">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-bold text-foreground sm:text-xl line-clamp-1">{item.name}</h3>
+                    <div className="flex flex-1 flex-col justify-between min-w-0">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-base font-bold text-foreground sm:text-lg line-clamp-1">{item.name}</h3>
                           <div className="mt-1 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             <span className="bg-muted px-2 py-0.5 rounded">{item.storage}</span>
                             <span className="bg-muted px-2 py-0.5 rounded">{item.color}</span>
                           </div>
                         </div>
-                        <p className="text-lg font-bold text-primary">{formatPrice(item.totalPrice)}</p>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-base font-bold text-primary sm:text-lg">{formatPrice(item.totalPrice)}</p>
+                          {item.originalPrice && item.originalPrice > item.price && (
+                            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                              <span className="text-xs text-muted-foreground line-through">{formatPrice(item.originalPrice * item.quantity)}</span>
+                              <span className="text-[10px] font-black text-white bg-green-600 px-1.5 py-0.5 rounded-full">
+                                {Math.round((1 - item.price / item.originalPrice) * 100)}% OFF
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div className="mt-4 flex items-center justify-between">
@@ -161,7 +177,7 @@ export default function Cart() {
             </div>
 
             {/* Order Summary */}
-            <div className="order-1 lg:order-2 lg:col-span-4">
+            <div className="lg:col-span-4">
               <div className="sticky top-24 rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-sm">
                 <h2 className="text-xl font-bold text-foreground mb-4">Order Summary</h2>
                 
@@ -184,10 +200,7 @@ export default function Cart() {
                 <div className="mt-6 space-y-3">
                   <Button 
                     className="w-full py-6 text-lg font-bold rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-[0.98]"
-                    onClick={() => {
-                      localStorage.removeItem("checkout_shipping");
-                      setLocation("/checkout/shipping");
-                    }}
+                    onClick={goToCheckout}
                   >
                     Proceed to Checkout
                   </Button>
@@ -195,7 +208,7 @@ export default function Cart() {
                     variant="outline" 
                     className="w-full py-6 text-lg font-bold rounded-2xl border-2 border-primary/10 hover:bg-primary/5 hover:border-primary/20 transition-all"
                     onClick={() => setLocation("/shop")}
-                  >
+                >
                     Add More Items
                   </Button>
                 </div>
@@ -208,7 +221,26 @@ export default function Cart() {
             </div>
           </div>
         )}
+
+        {/* Spacer so the mobile sticky checkout bar never covers the last item/summary */}
+        {cart.length > 0 && <div className="h-24 lg:hidden" />}
       </main>
+
+      {/* Sticky mobile checkout bar — keeps checkout reachable without scrolling, sits above the bottom nav */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-16 inset-x-0 z-40 bg-card/95 backdrop-blur-xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total</p>
+            <p className="text-lg font-bold text-primary truncate">{formatPrice(total)}</p>
+          </div>
+          <Button
+            className="flex-1 h-12 font-bold rounded-xl shadow-lg shadow-primary/20"
+            onClick={goToCheckout}
+          >
+            Proceed to Checkout
+          </Button>
+        </div>
+      )}
 
       <Footer />
     </div>
