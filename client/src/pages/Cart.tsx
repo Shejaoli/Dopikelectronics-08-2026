@@ -59,8 +59,8 @@ export default function Cart() {
       <Navbar />
       <WhatsAppFloat />
 
-      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+        <div className="mb-4 sm:mb-6">
           <Link href="/shop" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="mr-2 h-4 w-4" /> Continue Shopping
           </Link>
@@ -89,9 +89,9 @@ export default function Cart() {
             </Link>
           </motion.div>
         ) : (
-          <div className="grid gap-12 lg:grid-cols-12 lg:items-start">
+          <div className="grid gap-6 lg:grid-cols-12 lg:items-start lg:gap-10">
             {/* Cart Items */}
-            <div className="lg:col-span-8 space-y-6">
+            <div className="lg:col-span-8 space-y-4">
               <AnimatePresence mode="popLayout">
                 {cart.map((item, index) => (
                   <motion.div
@@ -100,7 +100,7 @@ export default function Cart() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95, x: -20 }}
-                    className="group relative flex gap-6 p-6 bg-card rounded-2xl border border-border hover:shadow-md transition-all"
+                    className="group relative flex gap-6 p-4 sm:p-6 bg-card rounded-2xl border border-border hover:shadow-md transition-all"
                   >
                     <div className="h-24 w-24 sm:h-32 sm:w-32 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-white p-4">
                       <img
@@ -162,8 +162,8 @@ export default function Cart() {
 
             {/* Order Summary */}
             <div className="lg:col-span-4">
-              <div className="sticky top-24 rounded-3xl border border-border bg-card p-8 shadow-sm">
-                <h2 className="text-xl font-bold text-foreground mb-6">Order Summary</h2>
+              <div className="sticky top-24 rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-sm">
+                <h2 className="text-xl font-bold text-foreground mb-4">Order Summary</h2>
                 
                 <div className="space-y-4">
                   <div className="flex justify-between text-muted-foreground">
@@ -181,7 +181,7 @@ export default function Cart() {
                   </div>
                 </div>
 
-                <div className="mt-8 space-y-3">
+                <div className="mt-6 space-y-3">
                   <Button 
                     className="w-full py-6 text-lg font-bold rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-[0.98]"
                     onClick={() => {
@@ -202,7 +202,7 @@ export default function Cart() {
 
                 <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <ShoppingBag className="h-4 w-4" />
-                  <span>Secure checkout via WhatsApp or Direct Order</span>
+                  <span>100% Secure Checkout</span>
                 </div>
               </div>
             </div>
