@@ -77,76 +77,47 @@ function validateMomoPhone(value: string, network: string): string {
   return "";
 }
 
-// Shipping schema
-const shippingSchema = z.object({
+// Single-page checkout (Phase 11): only what is needed to identify the buyer.
+// A shared GPS location is required (no manual address fallback).
+const checkoutSchema = z.object({
   email: z.string().email("Invalid email address"),
-  updates: z.boolean().default(false),
-  country: z.string().default("Rwanda"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  address: z.string().min(1, "Shipping address is required"),
-  apartment: z.string().optional(),
-  province: z.string().min(1, "Province / City is required"),
-  district: z.string().min(1, "District is required"),
-  sector: z.string().optional(),
-  cell: z.string().optional(),
-  landmark: z.string().optional(),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
+  fullName: z.string().min(2, "Full name is required"),
   phone: z.string().min(1, "Phone number is required"),
-}).superRefine((data, ctx) => {
-  if (isKigaliDistrict(data.district) && !data.sector) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["sector"],
-      message: "Sector is required for Kigali",
-    });
-  }
+  latitude: z.string().min(1, "Please share your location"),
+  longitude: z.string().min(1, "Please share your location"),
+  paymentMethod: z.string().min(1, "Select a payment method"),
 });
 
-type ShippingForm = z.infer<typeof shippingSchema>;
+type ShippingForm = z.infer<typeof checkoutSchema>;
 
-function CheckoutForm({ 
-  cart, 
-  shippingData, 
-  total, 
-  formatPrice, 
-  setLocation, 
-  setCreatedOrder 
-}: { 
-  cart: any[], 
-  shippingData: any, 
-  total: number, 
+function CheckoutSingle({
+  form,
+  cart,
+  total,
+  formatPrice,
+  setLocation,
+  setCreatedOrder,
+}: {
+  form: any,
+  cart: any[],
+  total: number,
   formatPrice: (p: number) => string,
   setLocation: (l: string) => void,
-  setCreatedOrder: (o: any) => void
+  setCreatedOrder: (o: any) => void,
 }) {
   const { toast } = useToast();
-  const [showMomoInstructions, setShowMomoInstructions] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
-  const paymentForm = useForm({
-    defaultValues: {
-      paymentMethod: "Cash on Delivery",
-      orderType: "Delivery",
-      orderDate: undefined as Date | undefined,
-      orderTime: "",
-      orderNotes: "",
-    },
-  });
-
-  const watchOrderType = paymentForm.watch("orderType");
-  const watchOrderDate = paymentForm.watch("orderDate");
-  const watchOrderTime = paymentForm.watch("orderTime");
-  const watchPaymentMethod = paymentForm.watch("paymentMethod");
-
-  const isOrderDetailsComplete = !!watchOrderType && !!watchOrderDate && !!watchOrderTime;
+  const watchPaymentMethod = form.watch("paymentMethod");
+  const watchLatitude = form.watch("latitude");
+  const watchLongitude = form.watch("longitude");
+  const hasLocation = !!watchLatitude && !!watchLongitude;
 
   // Mobile Money: collect and validate the customer's own paying-from number
   const [momoPhone, setMomoPhone] = useState("");
   const [momoInput, setMomoInput] = useState("");
   const [momoError, setMomoError] = useState("");
   const [momoDialogOpen, setMomoDialogOpen] = useState(false);
-  const [confirmedPaymentMethod, setConfirmedPaymentMethod] = useState("");
 
   useEffect(() => {
     if (!isMomoNetwork(watchPaymentMethod)) return;
@@ -172,21 +143,49 @@ function CheckoutForm({
   const handleMomoDialogChange = (open: boolean) => {
     setMomoDialogOpen(open);
     if (!open) {
-      paymentForm.setValue("paymentMethod", "");
+      form.setValue("paymentMethod", "");
       setMomoPhone("");
       setMomoInput("");
       setMomoError("");
     }
   };
 
-  // If the selected time slot has since passed (e.g. date changed to today, or time elapsed), clear it
-  useEffect(() => {
-    if (!watchOrderTime) return;
-    const slot = TIME_SLOTS.find((s) => s.value === watchOrderTime);
-    if (slot && isTimeSlotPast(slot, watchOrderDate)) {
-      paymentForm.setValue("orderTime", "");
+  const handleShareLocation = () => {
+    if (!navigator.geolocation) {
+      toast({
+        variant: "destructive",
+        title: "Location not supported",
+        description: "Your browser doesn't support sharing your location. Please try another browser or device.",
+      });
+      return;
     }
-  }, [watchOrderDate, watchOrderTime]);
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        form.setValue("latitude", String(position.coords.latitude), { shouldValidate: true });
+        form.setValue("longitude", String(position.coords.longitude), { shouldValidate: true });
+        setGpsLoading(false);
+        toast({
+          title: "Location shared",
+          description: "Your location will help our delivery person find you.",
+        });
+      },
+      () => {
+        setGpsLoading(false);
+        toast({
+          variant: "destructive",
+          title: "Couldn't get your location",
+          description: "Please allow location access for this site in your browser settings, turn off any VPN, and try again.",
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleClearLocation = () => {
+    form.setValue("latitude", "");
+    form.setValue("longitude", "");
+  };
 
   const orderMutation = useMutation({
     mutationFn: async (values: any) => {
@@ -197,17 +196,11 @@ function CheckoutForm({
       }
       return res.json();
     },
-    onSuccess: (order, variables) => {
+    onSuccess: (order) => {
       setCreatedOrder(order);
-
-      if (isMomoNetwork(variables.paymentMethod)) {
-        setConfirmedPaymentMethod(variables.paymentMethod);
-        setShowMomoInstructions(true);
-      } else {
-        localStorage.removeItem("cart");
-        localStorage.removeItem("checkout_shipping");
-        setLocation("/order-success");
-      }
+      localStorage.removeItem("cart");
+      localStorage.removeItem("checkout_shipping");
+      setLocation("/order-success");
     },
     onError: (error: Error) => {
       toast({
@@ -218,331 +211,126 @@ function CheckoutForm({
     },
   });
 
-  const onPaymentSubmit = async (data: any) => {
-    if (!shippingData) {
-      setLocation("/checkout/shipping");
-      return;
-    }
-
+  const onSubmit = (data: ShippingForm) => {
     if (isMomoNetwork(data.paymentMethod) && !momoPhone) {
       setMomoDialogOpen(true);
       return;
     }
 
-    try {
-      const locationParts = [shippingData.sector, shippingData.district, shippingData.province].filter(Boolean);
-      const deliveryLocation = `${shippingData.address}${shippingData.cell ? `, ${shippingData.cell} Cell` : ""}, ${locationParts.join(", ")}${shippingData.landmark ? ` (Near: ${shippingData.landmark})` : ""}`;
+    const orderData = {
+      customerName: data.fullName.trim(),
+      customerPhone: data.phone,
+      customerEmail: data.email,
+      deliveryLocation: "Live GPS location shared by customer",
+      deliveryLatitude: data.latitude,
+      deliveryLongitude: data.longitude,
+      orderType: "Delivery",
+      paymentMethod: data.paymentMethod,
+      paymentProvider: isMomoNetwork(data.paymentMethod) ? data.paymentMethod : null,
+      paymentReference: isMomoNetwork(data.paymentMethod) ? momoPhone : null,
+      totalAmount: total,
+      status: "pending",
+      items: cart.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        storage: item.storage,
+        color: item.color
+      })),
+    };
 
-      const orderData = {
-        customerName: `${shippingData.firstName} ${shippingData.lastName}`,
-        customerPhone: shippingData.phone,
-        customerEmail: shippingData.email,
-        deliveryLocation,
-        deliveryProvince: shippingData.province,
-        deliveryDistrict: shippingData.district,
-        deliverySector: shippingData.sector || null,
-        deliveryCell: shippingData.cell || null,
-        deliveryLandmark: shippingData.landmark || null,
-        deliveryLatitude: shippingData.latitude || null,
-        deliveryLongitude: shippingData.longitude || null,
-        orderType: data.orderType,
-        orderDate: data.orderDate ? format(data.orderDate, "PPP") : null,
-        orderTime: data.orderTime,
-        orderNotes: data.orderNotes,
-        paymentMethod: data.paymentMethod,
-        paymentProvider: isMomoNetwork(data.paymentMethod) ? data.paymentMethod : null,
-        paymentReference: isMomoNetwork(data.paymentMethod) ? momoPhone : null,
-        totalAmount: total,
-        status: "pending",
-        items: cart.map(item => ({
-          productId: item.productId,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          storage: item.storage,
-          color: item.color
-        })),
-      };
-
-      orderMutation.mutate(orderData);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Payment failed",
-        description: error.message,
-      });
-    }
+    orderMutation.mutate(orderData);
   };
 
-  if (showMomoInstructions) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-2xl mx-auto space-y-8 p-8 bg-card rounded-3xl border border-border shadow-2xl"
-      >
-        <div className="text-center space-y-4">
-          <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
-            <Wallet className="w-10 h-10 text-primary" />
-          </div>
-          <h2 className="text-3xl font-black tracking-tight">Complete Your Payment</h2>
-          <p className="text-muted-foreground">Please follow these steps to complete your {confirmedPaymentMethod || "Mobile Money"} transaction.</p>
-        </div>
-
-        <div className="bg-primary/5 rounded-2xl p-8 border border-primary/10 space-y-6">
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">1</div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground uppercase font-black tracking-widest">Step 1: Dial</p>
-              <p className="font-bold text-xl text-primary">{MOMO_NETWORKS[confirmedPaymentMethod]?.dialCode || MOMO_NETWORKS["MTN Mobile Money"].dialCode}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">2</div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground uppercase font-black tracking-widest">Step 2: Enter Amount</p>
-              <p className="font-bold text-xl text-primary">{formatPrice(total)}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">3</div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground uppercase font-black tracking-widest">Step 3: Verify Name</p>
-              <p className="font-bold text-lg">Check If the name is Correct: <span className="text-primary">David TUYISHIME</span></p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">4</div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground uppercase font-black tracking-widest">Step 4: Confirm</p>
-              <p className="font-bold text-lg">Confirm Payment.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-muted/30 rounded-xl p-4 text-center">
-          <p className="text-sm font-medium">
-            Your order will be processed once the payment is successfully received. Thank you for using Mobile Money Payment!
-          </p>
-        </div>
-
-        <Separator />
-
-        <div className="space-y-6">
-          <h3 className="font-black uppercase tracking-tighter text-xl">Order details</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-widest border-b pb-2">
-              <span>Product</span>
-              <span>Total</span>
-            </div>
-            {cart.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-sm">
-                <span className="font-medium">{item.name} × {item.quantity}</span>
-                <span className="font-bold">{formatPrice(item.price * item.quantity)}</span>
-              </div>
-            ))}
-            <Separator className="my-2" />
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal:</span>
-              <span className="font-bold">{formatPrice(total)}</span>
-            </div>
-            <div className="flex justify-between text-xl font-black">
-              <span>Total:</span>
-              <span className="text-primary">{formatPrice(total)}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-y-2 pt-4 text-sm border-t">
-              <span className="text-muted-foreground">Payment method:</span>
-              <span className="font-bold text-right">Mobile Money Payment</span>
-              
-              <span className="text-muted-foreground">{watchOrderType} Date:</span>
-              <span className="font-bold text-right">{watchOrderDate ? format(watchOrderDate, "MMMM d, yyyy") : "N/A"}</span>
-              
-              <span className="text-muted-foreground">{watchOrderType} Time:</span>
-              <span className="font-bold text-right">{watchOrderTime}</span>
-            </div>
-          </div>
-
-          <div className="pt-6 border-t space-y-2">
-            <h3 className="font-black uppercase tracking-tighter text-xl">Billing address</h3>
-            <div className="text-sm space-y-1">
-              <p className="font-bold text-lg">{shippingData?.firstName} {shippingData?.lastName}</p>
-              <p className="text-muted-foreground">{shippingData?.address}</p>
-              <p className="text-muted-foreground">{[shippingData?.sector, shippingData?.district, shippingData?.province].filter(Boolean).join(", ")}</p>
-              <p className="text-muted-foreground font-medium">{shippingData?.phone}</p>
-              <p className="text-primary font-bold">{shippingData?.email}</p>
-            </div>
-          </div>
-        </div>
-
-        <Link href="/order-success">
-          <Button className="w-full h-16 rounded-2xl font-black text-xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2" onClick={() => {
-            localStorage.removeItem("cart");
-            localStorage.removeItem("checkout_shipping");
-          }}>
-            I've Completed Payment
-          </Button>
-        </Link>
-      </motion.div>
-    );
-  }
-
   return (
-    <Form {...paymentForm}>
-      <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-8">
-        <div className="space-y-6">
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-bold">Shipping Information</h2>
-              </div>
-              <Link href="/checkout/shipping" className="text-sm font-bold underline hover:text-primary transition-colors">
-                Change
-              </Link>
-            </div>
-            <div className="space-y-1 text-sm text-muted-foreground ml-7">
-              <p className="font-bold text-foreground text-lg">{shippingData?.firstName} {shippingData?.lastName}</p>
-              <p>{shippingData?.email}</p>
-              <p>{shippingData?.address}{shippingData?.apartment ? `, ${shippingData.apartment}` : ""}, {[shippingData?.sector, shippingData?.district, shippingData?.province].filter(Boolean).join(", ")}</p>
-              <p className="font-bold text-foreground">{shippingData?.phone}</p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Truck className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold">Order Preferences</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={paymentForm.control}
-                name="orderType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold text-sm uppercase tracking-widest">Order Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-12 rounded-xl border-2 focus:ring-primary">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Delivery">Delivery</SelectItem>
-                        <SelectItem value="Pickup">Pickup</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={paymentForm.control}
-                name="orderDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel className="font-bold text-sm uppercase tracking-widest">{watchOrderType} Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "h-12 rounded-xl border-2 text-left font-normal focus:ring-primary",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) => {
-                            const startOfToday = new Date();
-                            startOfToday.setHours(0, 0, 0, 0);
-                            return date < startOfToday || date < new Date("1900-01-01");
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={paymentForm.control}
-                name="orderTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold text-sm uppercase tracking-widest">{watchOrderType} Time</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-12 rounded-xl border-2 focus:ring-primary">
-                          <SelectValue placeholder="Select time" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {TIME_SLOTS.map((slot) => {
-                          const passed = isTimeSlotPast(slot, watchOrderDate);
-                          return (
-                            <SelectItem key={slot.value} value={slot.value} disabled={passed}>
-                              {slot.value}{passed ? " (Passed)" : ""}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Contact</h2>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input type="email" placeholder="Email" className="h-12 rounded-xl border-2" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
-              control={paymentForm.control}
-              name="orderNotes"
+              control={form.control}
+              name="fullName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-bold text-sm uppercase tracking-widest">Order notes (optional)</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Notes about your order, e.g. special notes for delivery." 
-                      className="min-h-[100px] rounded-xl border-2 focus:ring-primary"
-                      {...field} 
-                    />
+                    <Input placeholder="Full names" className="h-12 rounded-xl border-2" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input type="tel" placeholder="Phone number" className="h-12 rounded-xl border-2" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
+        </div>
 
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Payment Method</h2>
-            <p className="text-sm text-muted-foreground">All transactions are secure and encrypted.</p>
-          </div>
-          
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Delivery location</h2>
+          {hasLocation ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+              <span className="flex items-center gap-2 font-medium text-foreground">
+                <MapPin className="h-4 w-4 text-primary" /> Location shared
+              </span>
+              <button
+                type="button"
+                onClick={handleClearLocation}
+                className="text-xs font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Clear
+              </button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleShareLocation}
+              disabled={gpsLoading}
+              className="h-12 w-full rounded-xl border-2 gap-2"
+            >
+              <MapPin className="h-4 w-4" />
+              {gpsLoading ? "Getting your location\u2026" : "Share My Live Location"}
+            </Button>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Delivery is <span className="font-bold text-green-500">FREE</span>. We use your shared location to find you — no address to type.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Payment Method</h2>
           <FormField
-            control={paymentForm.control}
+            control={form.control}
             name="paymentMethod"
             render={({ field }) => (
               <FormItem className="space-y-3">
                 <FormControl>
                   <RadioGroup
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                     className="flex flex-col gap-4"
                   >
                     <FormItem className="flex items-start space-x-4 space-y-0 rounded-2xl border-2 border-border p-6 cursor-pointer hover:bg-accent/5 transition-colors data-[state=checked]:border-primary">
@@ -587,36 +375,6 @@ function CheckoutForm({
                         </div>
                       </div>
                     </FormItem>
-
-                    <FormItem className="flex flex-col rounded-2xl border-2 border-border overflow-hidden cursor-pointer hover:bg-accent/5 transition-colors data-[state=checked]:border-primary">
-                      <div className="flex items-start space-x-4 p-6">
-                        <FormControl>
-                          <RadioGroupItem value="Airtel Money" className="mt-1" />
-                        </FormControl>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <FormLabel className="font-bold text-lg flex items-center gap-2">
-                              <Wallet className="h-5 w-5 text-primary" />
-                              Airtel Money
-                            </FormLabel>
-                          </div>
-                          <p className="text-sm text-muted-foreground">Pay using Airtel Money. Quick and secure mobile payments.</p>
-                          {watchPaymentMethod === "Airtel Money" && momoPhone && (
-                            <div className="flex items-center gap-2 mt-2">
-                              <p className="text-sm font-bold text-primary">Paying from: {momoPhone}</p>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); setMomoInput(momoPhone); setMomoError(""); setMomoDialogOpen(true); }}
-                                className="text-xs underline text-muted-foreground hover:text-foreground"
-                              >
-                                Change
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </FormItem>
-
                   </RadioGroup>
                 </FormControl>
                 <FormMessage />
@@ -658,395 +416,28 @@ function CheckoutForm({
             </DialogContent>
           </Dialog>
         </div>
+
         <div className="space-y-4">
-          {!isOrderDetailsComplete && (
-            <div className="bg-destructive/10 text-destructive p-4 rounded-xl flex items-center gap-3 animate-pulse">
-              <CalendarIcon className="h-5 w-5" />
+          {!hasLocation && (
+            <div className="bg-destructive/10 text-destructive p-4 rounded-xl flex items-center gap-3">
+              <MapPin className="h-5 w-5" />
               <p className="text-sm font-bold">
-                Please select {watchOrderType} date and time to continue
+                Please share your live location to continue
               </p>
             </div>
           )}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button 
-              type="button" 
-              variant="ghost" 
-              onClick={() => setLocation("/checkout/shipping")}
-              className="flex-1 py-8 text-lg font-bold rounded-2xl border-2 hover:bg-accent"
-            >
-              <ArrowLeft className="mr-2 h-5 w-5" />
-              Back
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={orderMutation.isPending || !isOrderDetailsComplete || !watchPaymentMethod || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
-              className="flex-[2] py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-tighter"
-            >
-              {orderMutation.isPending ? "Processing..." : "Pay Now"}
-              <ArrowRight className="ml-2 h-6 w-6" />
-            </Button>
-          </div>
+          <Button 
+            type="submit" 
+            disabled={orderMutation.isPending || !hasLocation || !watchPaymentMethod || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
+            className="w-full py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-tighter"
+          >
+            {orderMutation.isPending ? "Processing..." : "Pay Now"}
+            <ArrowRight className="ml-2 h-6 w-6" />
+          </Button>
           <p className="text-center text-xs text-muted-foreground font-medium">
             🔒 Secure transaction. Your data is protected by industry-standard encryption.
           </p>
         </div>
-      </form>
-    </Form>
-  );
-}
-
-function CheckoutShipping({ 
-  shippingForm, 
-  onNext,
-  deliveryFees
-}: { 
-  shippingForm: any, 
-  onNext: (data: ShippingForm) => void,
-  deliveryFees?: { sector: string; fee: number }[]
-}) {
-  const watchProvince = shippingForm.watch("province");
-  const watchDistrict = shippingForm.watch("district");
-  const watchSector = shippingForm.watch("sector");
-  const watchLatitude = shippingForm.watch("latitude");
-  const watchLongitude = shippingForm.watch("longitude");
-  const districtOptions = watchProvince ? DISTRICTS_BY_PROVINCE[watchProvince] || [] : [];
-  const sectorOptions = watchDistrict && isKigaliDistrict(watchDistrict) ? KIGALI_SECTORS_BY_DISTRICT[watchDistrict] || [] : [];
-  const showSectorAndCell = !!watchDistrict && isKigaliDistrict(watchDistrict);
-  const selectedSectorFee = watchSector ? deliveryFees?.find((f) => f.sector === watchSector)?.fee : undefined;
-  const { toast } = useToast();
-  const [gpsLoading, setGpsLoading] = useState(false);
-
-  const handleShareLocation = () => {
-    if (!navigator.geolocation) {
-      toast({
-        variant: "destructive",
-        title: "Location not supported",
-        description: "Your browser doesn't support sharing GPS location. You can still continue using the address fields above.",
-      });
-      return;
-    }
-    setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        shippingForm.setValue("latitude", String(position.coords.latitude));
-        shippingForm.setValue("longitude", String(position.coords.longitude));
-        setGpsLoading(false);
-        toast({
-          title: "Location shared",
-          description: "Your GPS pin will help the delivery person find you more easily.",
-        });
-      },
-      () => {
-        setGpsLoading(false);
-        toast({
-          variant: "destructive",
-          title: "Couldn't get your location",
-          description: "No problem \u2014 the address fields above are all that's needed to deliver your order.",
-        });
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-
-  const handleClearLocation = () => {
-    shippingForm.setValue("latitude", "");
-    shippingForm.setValue("longitude", "");
-  };
-
-  return (
-    <Form {...shippingForm}>
-      <form onSubmit={shippingForm.handleSubmit(onNext)} className="space-y-8">
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2 space-y-4">
-              <h2 className="text-xl font-bold">Contact</h2>
-              <FormField
-                control={shippingForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input placeholder="Email" className="h-12 rounded-xl border-2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={shippingForm.control}
-                name="updates"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-sm font-medium">
-                        Send me order updates
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="md:col-span-2 space-y-4 pt-4">
-              <h2 className="text-xl font-bold">Delivery</h2>
-              <FormField
-                control={shippingForm.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-12 rounded-xl border-2">
-                          <SelectValue placeholder="Country/Region" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Rwanda">Rwanda</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={shippingForm.control}
-              name="firstName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input placeholder="First Name" className="h-12 rounded-xl border-2" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={shippingForm.control}
-              name="lastName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Input placeholder="Last Name" className="h-12 rounded-xl border-2" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="md:col-span-2">
-              <FormField
-                control={shippingForm.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input placeholder="Shipping Address" className="h-12 rounded-xl border-2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <FormField
-                control={shippingForm.control}
-                name="apartment"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input placeholder="Apartment / Unit (optional)" className="h-12 rounded-xl border-2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={shippingForm.control}
-              name="province"
-              render={({ field }) => (
-                <FormItem>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      shippingForm.setValue("district", "");
-                      shippingForm.setValue("sector", "");
-                      shippingForm.setValue("cell", "");
-                    }}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="h-12 rounded-xl border-2">
-                        <SelectValue placeholder="Select Province / City" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {PROVINCES.map((p) => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={shippingForm.control}
-              name="district"
-              render={({ field }) => (
-                <FormItem>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      shippingForm.setValue("sector", "");
-                      shippingForm.setValue("cell", "");
-                    }}
-                    value={field.value}
-                    disabled={!watchProvince}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="h-12 rounded-xl border-2">
-                        <SelectValue placeholder="Select District" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {districtOptions.map((d) => (
-                        <SelectItem key={d} value={d}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {showSectorAndCell && (
-              <FormField
-                control={shippingForm.control}
-                name="sector"
-                render={({ field }) => (
-                  <FormItem>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-12 rounded-xl border-2">
-                          <SelectValue placeholder="Select Sector" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {sectorOptions.map((s) => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            {showSectorAndCell && (
-              <FormField
-                control={shippingForm.control}
-                name="cell"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input placeholder="Cell (optional)" className="h-12 rounded-xl border-2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            <div className="md:col-span-2">
-              <FormField
-                control={shippingForm.control}
-                name="landmark"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input placeholder="Nearby known place (optional) — e.g. next to a school, church, market" className="h-12 rounded-xl border-2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="md:col-span-2">
-              {watchLatitude && watchLongitude ? (
-                <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-                  <span className="flex items-center gap-2 font-medium text-foreground">
-                    <MapPin className="h-4 w-4 text-primary" /> GPS location shared
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleClearLocation}
-                    className="text-xs font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                  >
-                    Clear
-                  </button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleShareLocation}
-                  disabled={gpsLoading}
-                  className="h-12 w-full rounded-xl border-2 gap-2"
-                >
-                  <MapPin className="h-4 w-4" />
-                  {gpsLoading ? "Getting your location\u2026" : "Share My GPS Location (optional)"}
-                </Button>
-              )}
-            </div>
-            {watchProvince && (
-              <div className="md:col-span-2 rounded-xl border-2 border-primary/20 bg-primary/5 p-4 text-sm">
-                {watchProvince === "Kigali City" ? (
-                  selectedSectorFee !== undefined ? (
-                    <>
-                      <p className="font-bold text-foreground">🚚 Delivery Fee: {new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(selectedSectorFee)}</p>
-                      <p className="text-muted-foreground mt-1">This is the standard delivery fee for your selected sector and will be added to your order total.</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-bold text-foreground">🚚 Delivery Fee: Negotiable with the deliverer</p>
-                      <p className="text-muted-foreground mt-1">Select your sector above to see the exact delivery fee.</p>
-                    </>
-                  )
-                ) : (
-                  <>
-                    <p className="font-bold text-foreground">🚚 Delivery Fee: Based on transportation service</p>
-                    <p className="text-muted-foreground mt-1">Delivery fee depends on the transportation service/fare to your location. The final delivery cost will be communicated and confirmed before delivery.</p>
-                  </>
-                )}
-              </div>
-            )}
-            <div className="md:col-span-2">
-              <FormField
-                control={shippingForm.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input placeholder="Phone Number" className="h-12 rounded-xl border-2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        </div>
-
-        <Button type="submit" className="w-full py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 uppercase tracking-tighter">
-          Continue to Payment
-          <ArrowRight className="ml-2 h-6 w-6" />
-        </Button>
       </form>
     </Form>
   );
@@ -1149,7 +540,6 @@ function OrderConfirmation({ order, formatPrice }: { order: any; formatPrice: (p
 export default function Checkout() {
   const [location, setLocation] = useLocation();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [shippingData, setShippingData] = useState<ShippingForm | null>(null);
   const [createdOrder, setCreatedOrder] = useState<any>(null);
 
   const { data: customer } = useQuery<any>({
@@ -1164,23 +554,14 @@ export default function Checkout() {
   });
 
   const shippingForm = useForm<ShippingForm>({
-    resolver: zodResolver(shippingSchema),
+    resolver: zodResolver(checkoutSchema),
     defaultValues: {
       email: "",
-      updates: false,
-      country: "Rwanda",
-      firstName: "",
-      lastName: "",
-      address: "",
-      apartment: "",
-      province: "",
-      district: "",
-      sector: "",
-      cell: "",
-      landmark: "",
+      fullName: "",
+      phone: "",
       latitude: "",
       longitude: "",
-      phone: "",
+      paymentMethod: "Cash on Delivery",
     },
   });
 
@@ -1197,67 +578,27 @@ export default function Checkout() {
       setLocation("/shop");
     }
 
-    const savedShipping = localStorage.getItem("checkout_shipping");
-    if (savedShipping) {
-      const parsed = JSON.parse(savedShipping);
-      setShippingData(parsed);
-      shippingForm.reset(parsed);
-    }
   }, [location, setLocation]);
 
-  // Auto-fill shipping form from customer account when no saved shipping
+  // Auto-fill from customer account (only empty fields, never overwrites what was typed)
   useEffect(() => {
-    if (customer && !localStorage.getItem("checkout_shipping")) {
-      const nameParts = (customer.fullName || "").trim().split(/\s+/);
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
-      shippingForm.reset({
-        email: customer.email || "",
-        phone: customer.phone || "",
-        firstName,
-        lastName,
-        updates: false,
-        country: "Rwanda",
-        address: "",
-        apartment: "",
-        province: "",
-        district: "",
-        sector: "",
-        cell: "",
-        landmark: "",
-        latitude: "",
-        longitude: "",
-      });
-    }
+    if (!customer) return;
+    const fillIfEmpty = (name: "email" | "fullName" | "phone", value?: string) => {
+      if (value && !shippingForm.getValues(name)) shippingForm.setValue(name, value);
+    };
+    fillIfEmpty("email", customer.email);
+    fillIfEmpty("fullName", customer.fullName);
+    fillIfEmpty("phone", customer.phone);
   }, [customer]);
 
-  const onShippingSubmit = (data: ShippingForm) => {
-    localStorage.setItem("checkout_shipping", JSON.stringify(data));
-    setShippingData(data);
-    setLocation("/checkout/payment");
-  };
-
-  const { data: deliveryFeesData } = useQuery<{ sector: string; fee: number }[]>({
-    queryKey: ["/api/delivery-fees"],
-    queryFn: async () => {
-      const res = await fetch("/api/delivery-fees");
-      if (!res.ok) return [];
-      return res.json();
-    },
-    staleTime: 60000,
-  });
-
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
-  const deliveryFee = shippingData?.sector
-    ? (deliveryFeesData?.find((f) => f.sector === shippingData.sector)?.fee ?? 0)
-    : 0;
-  const total = subtotal + deliveryFee;
+  // Shipping is free for every order (Phase 11)
+  const total = subtotal;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(price);
   };
 
-  const isPaymentStep = location === "/checkout/payment";
   const isOrderSuccess = location === "/order-success" || location === "/order/success";
 
   if (isOrderSuccess) {
@@ -1302,28 +643,18 @@ export default function Checkout() {
               <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground">
                 <Link href="/cart" className="hover:text-primary transition-colors">Cart</Link>
                 <ChevronRight className="h-4 w-4" />
-                <span className={cn(!isPaymentStep && "text-foreground", isPaymentStep && "hover:text-primary cursor-pointer")} onClick={() => isPaymentStep && setLocation("/checkout/shipping")}>Information</span>
-                <ChevronRight className="h-4 w-4" />
-                <span className={cn(isPaymentStep ? "text-foreground" : "text-muted-foreground")}>Payment</span>
+                <span className="text-foreground">Checkout</span>
               </div>
             </div>
 
-            {isPaymentStep ? (
-              <CheckoutForm 
-                cart={cart}
-                shippingData={shippingData}
-                total={total}
-                formatPrice={formatPrice}
-                setLocation={setLocation}
-                setCreatedOrder={setCreatedOrder}
-              />
-            ) : (
-              <CheckoutShipping 
-                shippingForm={shippingForm} 
-                onNext={onShippingSubmit}
-                deliveryFees={deliveryFeesData}
-              />
-            )}
+            <CheckoutSingle
+              form={shippingForm}
+              cart={cart}
+              total={total}
+              formatPrice={formatPrice}
+              setLocation={setLocation}
+              setCreatedOrder={setCreatedOrder}
+            />
           </div>
 
           <div className="lg:col-span-5">
@@ -1358,11 +689,7 @@ export default function Checkout() {
                   </div>
                   <div className="flex justify-between text-sm font-medium">
                     <span className="text-muted-foreground">Shipping</span>
-                    {shippingData?.sector ? (
-                      <span>{formatPrice(deliveryFee)}</span>
-                    ) : (
-                      <span className="text-green-500 font-bold uppercase tracking-widest text-[10px] bg-green-500/10 px-2 py-1 rounded-full">Calculated at next step</span>
-                    )}
+                    <span className="text-green-500 font-bold uppercase tracking-widest text-[10px] bg-green-500/10 px-2 py-1 rounded-full">Free</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between items-baseline">
