@@ -42,3 +42,5 @@ attached_assets/Pasted-*.txt
 # Local backup copies
 *.backup-security
 *.backup-security-*
+
+ecosystem.config.cjs
