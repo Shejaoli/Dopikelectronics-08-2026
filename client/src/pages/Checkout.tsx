@@ -78,13 +78,13 @@ function validateMomoPhone(value: string, network: string): string {
 }
 
 // Single-page checkout (Phase 11): only what is needed to identify the buyer.
-// A shared GPS location is required (no manual address fallback).
+// Sharing a GPS location is optional.
 const checkoutSchema = z.object({
   email: z.string().email("Invalid email address"),
   fullName: z.string().min(2, "Full name is required"),
   phone: z.string().min(1, "Phone number is required"),
-  latitude: z.string().min(1, "Please share your location"),
-  longitude: z.string().min(1, "Please share your location"),
+  latitude: z.string(),
+  longitude: z.string(),
   paymentMethod: z.string().min(1, "Select a payment method"),
 });
 
@@ -221,9 +221,11 @@ function CheckoutSingle({
       customerName: data.fullName.trim(),
       customerPhone: data.phone,
       customerEmail: data.email,
-      deliveryLocation: "Live GPS location shared by customer",
-      deliveryLatitude: data.latitude,
-      deliveryLongitude: data.longitude,
+      deliveryLocation: hasLocation
+        ? "Live GPS location shared by customer"
+        : "GPS location not shared; contact customer to confirm delivery address",
+      deliveryLatitude: data.latitude || null,
+      deliveryLongitude: data.longitude || null,
       orderType: "Delivery",
       paymentMethod: data.paymentMethod,
       paymentProvider: isMomoNetwork(data.paymentMethod) ? data.paymentMethod : null,
@@ -312,11 +314,11 @@ function CheckoutSingle({
               className="h-12 w-full rounded-xl border-2 gap-2"
             >
               <MapPin className="h-4 w-4" />
-              {gpsLoading ? "Getting your location\u2026" : "Share My Live Location"}
+              {gpsLoading ? "Getting your location\u2026" : "Share My Live Location (Optional)"}
             </Button>
           )}
           <p className="text-xs text-muted-foreground">
-            Delivery is <span className="font-bold text-green-500">FREE</span>. We use your shared location to find you — no address to type.
+            Delivery is <span className="font-bold text-green-500">FREE</span>. Sharing your location is optional; you can still order without it. Our team may contact you to confirm your delivery address.
           </p>
         </div>
 
@@ -418,17 +420,9 @@ function CheckoutSingle({
         </div>
 
         <div className="space-y-4">
-          {!hasLocation && (
-            <div className="bg-destructive/10 text-destructive p-4 rounded-xl flex items-center gap-3">
-              <MapPin className="h-5 w-5" />
-              <p className="text-sm font-bold">
-                Please share your live location to continue
-              </p>
-            </div>
-          )}
-          <Button 
+          <Button
             type="submit" 
-            disabled={orderMutation.isPending || !hasLocation || !watchPaymentMethod || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
+            disabled={orderMutation.isPending || !watchPaymentMethod || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
             className="w-full py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-tighter"
           >
             {orderMutation.isPending ? "Processing..." : "Pay Now"}

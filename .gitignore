@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+ecosystem.config.cjs
 
 # Dependencies
 node_modules/
