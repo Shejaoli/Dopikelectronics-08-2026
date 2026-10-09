@@ -10,6 +10,17 @@ export interface PaginatedResult<T> {
   totalPages: number;
 }
 
+const REVENUE_STATUSES = new Set([
+  "paid", "shipped", "completed", "delivered", "confirmed", "processing", "pending",
+]);
+
+function isRevenueOrder(order: Order): boolean {
+  if (order.paymentMethod === "MTN Mobile Money") {
+    return order.paymentState === "SUCCEEDED" && REVENUE_STATUSES.has(order.status);
+  }
+  return REVENUE_STATUSES.has(order.status);
+}
+
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -425,6 +436,8 @@ export class DatabaseStorage implements IStorage {
         paymentMethod: order.paymentMethod || null,
         paymentProvider: order.paymentProvider || null,
         paymentReference: order.paymentReference || null,
+        paymentPhone: order.paymentPhone || null,
+        paymentState: order.paymentState || null,
         totalAmount: order.totalAmount,
         deliveryFee: order.deliveryFee || 0,
         currency: order.currency || "RWF",
@@ -497,7 +510,9 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      const isReverting = (oldStatus === "confirmed" || oldStatus === "paid") && (nextStatus === "pending" || nextStatus === "cancelled");
+      const isReverting =
+        ((oldStatus === "confirmed" || oldStatus === "paid") && (nextStatus === "pending" || nextStatus === "cancelled")) ||
+        (oldStatus === "pending" && (nextStatus === "cancelled" || nextStatus === "failed"));
       if (isReverting) {
         for (const item of order.items || []) {
           const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
@@ -581,8 +596,7 @@ export class DatabaseStorage implements IStorage {
       });
     }
 
-    const paidStatuses = ["paid", "shipped", "completed", "delivered", "confirmed", "processing", "pending"];
-    const paidOrders = currentPeriodOrders.filter(o => paidStatuses.includes(o.status));
+    const paidOrders = currentPeriodOrders.filter(isRevenueOrder);
     const totalRevenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
 
     const [totalAdmins] = await db.select({ value: count() }).from(admins);
@@ -633,7 +647,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       periodicData[periodKey].orders += 1;
-      if (["paid", "shipped", "completed", "delivered", "confirmed", "processing", "pending"].includes(order.status)) {
+      if (isRevenueOrder(order)) {
         periodicData[periodKey].revenue += order.totalAmount;
       }
     });
@@ -705,7 +719,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const totalOrders = filteredOrders.length;
-    const paidOrdersList = filteredOrders.filter(o => ["paid", "shipped", "completed", "delivered", "confirmed", "processing", "pending"].includes(o.status));
+    const paidOrdersList = filteredOrders.filter(isRevenueOrder);
     const paidOrders = paidOrdersList.length;
     const pendingOrders = filteredOrders.filter(o => o.status === "pending").length;
     const totalRevenue = paidOrdersList.reduce((sum, o) => sum + o.totalAmount, 0);

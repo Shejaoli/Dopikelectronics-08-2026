@@ -25,6 +25,7 @@ uploads/
 # Backups
 *.dump
 *.sql
+!migrations/*.sql
 *.tar.gz
 *.bundle
 backups/
