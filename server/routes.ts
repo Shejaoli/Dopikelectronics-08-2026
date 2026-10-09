@@ -5,10 +5,10 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { hashPassword, verifyPassword, requireAdminAuth, requireSuperAdminAuth } from "./auth";
 import { db } from "./db";
-import { eq, count, desc } from "drizzle-orm";
+import { eq, count, desc, inArray } from "drizzle-orm";
 import { OAuth2Client } from "google-auth-library";
 import { randomBytes } from "crypto";
-import { insertProductSchema, insertOrderSchema, orders, insertVideoSchema, videos, admins, insertHomeSectionSchema, products, insertCouponCodeSchema } from "@shared/schema";
+import { insertProductSchema, insertOrderSchema, orders, ipayWebhookEvents, insertVideoSchema, videos, admins, insertHomeSectionSchema, products, insertCouponCodeSchema } from "@shared/schema";
 import { isValidRwandaLocation } from "@shared/rwanda-locations";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
@@ -19,6 +19,7 @@ import Stripe from "stripe";
 import { Buffer } from "buffer";
 import ffmpeg from "fluent-ffmpeg";
 import { notifyNewOrder, notifyNewCustomer } from "./notifications";
+import { canTransitionIpayState, checkIpayCollection, IpayRequestError, initiateIpayCollection, verifyIpayWebhookSignature, type IpayState, type IpayWebhookEvent } from "./ipay";
 
 // Video compression utility
 async function compressVideo(inputPath: string, outputPath: string): Promise<void> {
@@ -41,6 +42,119 @@ async function compressVideo(inputPath: string, outputPath: string): Promise<voi
 }
 
 import paypal from "@paypal/checkout-server-sdk";
+
+const ipayWebhookSchema = z.object({
+  eventId: z.string().min(1).max(200),
+  eventType: z.literal("collection.status_changed"),
+  occurredAt: z.string().datetime({ offset: true }),
+  collectionId: z.string().min(1).max(200),
+  transactionId: z.string().min(1).max(200),
+  state: z.enum(["CREATED", "QUEUED", "DISPATCHING", "PENDING", "SUCCEEDED", "FAILED", "UNKNOWN", "CANCELLED"]),
+  status: z.number().int(),
+  amount: z.number().int().positive(),
+  currency: z.literal("RWF"),
+});
+
+function normalizeRwandaPhone(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (/^0(78|79)\d{7}$/.test(digits)) return `25${digits.slice(1)}`;
+  if (/^250(78|79)\d{7}$/.test(digits)) return digits;
+  throw new Error("Enter an MTN Rwanda number starting with 078 or 079");
+}
+
+async function priceIpayOrderItems(value: unknown): Promise<{
+  productId: number;
+  name: string;
+  quantity: number;
+  price: number;
+  storage?: string;
+  color?: string;
+}[]> {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 100) {
+    throw new Error("Order must contain between 1 and 100 items.");
+  }
+
+  const items = value.map((item) => {
+    if (!item || typeof item !== "object") throw new Error("Invalid order item.");
+    const input = item as Record<string, unknown>;
+    if (
+      !Number.isSafeInteger(input.productId) ||
+      (input.productId as number) < 1 ||
+      !Number.isSafeInteger(input.quantity) ||
+      (input.quantity as number) < 1
+    ) {
+      throw new Error("Each order item needs a valid product and quantity.");
+    }
+    if ((input.storage != null && typeof input.storage !== "string") ||
+        (input.color != null && typeof input.color !== "string")) {
+      throw new Error("Invalid product variation.");
+    }
+    return {
+      productId: input.productId as number,
+      quantity: input.quantity as number,
+      storage: input.storage as string | undefined,
+      color: input.color as string | undefined,
+    };
+  });
+  const productRows = await db
+    .select()
+    .from(products)
+    .where(inArray(products.id, [...new Set(items.map((item) => item.productId))]));
+  const productsById = new Map(productRows.map((product) => [product.id, product]));
+
+  return items.map((item) => {
+    const product = productsById.get(item.productId);
+    if (!product) throw new Error(`Product ${item.productId} is no longer available.`);
+
+    let price = product.price;
+    if (item.storage) {
+      const storage = product.variations?.storage?.find((option) => option.option === item.storage);
+      if (!storage) throw new Error(`Selected storage is unavailable for ${product.name}.`);
+      if (!Number.isSafeInteger(storage.priceOffset)) {
+        throw new Error(`Invalid stored price for ${product.name}.`);
+      }
+      price += storage.priceOffset;
+    }
+    if (item.color && !product.variations?.colors?.some((option) => option.name === item.color)) {
+      throw new Error(`Selected color is unavailable for ${product.name}.`);
+    }
+    if (!Number.isSafeInteger(price) || price < 1) {
+      throw new Error(`Invalid stored price for ${product.name}.`);
+    }
+
+    return {
+      productId: item.productId,
+      name: product.name,
+      quantity: item.quantity,
+      price,
+      ...(item.storage ? { storage: item.storage } : {}),
+      ...(item.color ? { color: item.color } : {}),
+    };
+  });
+}
+
+function phonesMatch(first: string, second: string): boolean {
+  const normalize = (phone: string) => {
+    const digits = phone.replace(/\D/g, "");
+    return /^0\d{9}$/.test(digits) ? `25${digits.slice(1)}` : digits;
+  };
+  return normalize(first) === normalize(second);
+}
+
+async function applyIpayState(orderId: number, state: IpayState, reconcile = false): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update");
+    if (!order) return;
+    if (["SUCCEEDED", "FAILED", "CANCELLED"].includes(order.paymentState || "")) return;
+    if (!reconcile && !canTransitionIpayState(order.paymentState, state)) return;
+
+    const changes: { paymentState: string; status?: string } = { paymentState: state };
+    if (state === "SUCCEEDED" && order.status === "pending") {
+      changes.status = "paid";
+    }
+    await tx.update(orders).set(changes).where(eq(orders.id, orderId));
+  });
+}
 
 let sharpModule: any = null;
 try {
@@ -1163,9 +1277,129 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
     }
   });
 
+  app.post("/api/ipay/webhook", async (req, res) => {
+    try {
+      const rawBody = req.rawBody;
+      const timestamp = req.get("X-iPay-Timestamp") || "";
+      const signature = req.get("X-iPay-Signature") || "";
+      const headerEventId = req.get("X-iPay-Event-Id") || "";
+      if (!Buffer.isBuffer(rawBody) || !verifyIpayWebhookSignature(timestamp, signature, rawBody)) {
+        return res.status(401).json({ message: "Invalid iPay webhook signature" });
+      }
+
+      const parsed = ipayWebhookSchema.safeParse(req.body);
+      if (!parsed.success || parsed.data.eventId !== headerEventId) {
+        return res.status(400).json({ message: "Invalid iPay webhook event" });
+      }
+      const event = parsed.data as IpayWebhookEvent;
+
+      const outcome = await db.transaction(async (tx) => {
+        const [inserted] = await tx
+          .insert(ipayWebhookEvents)
+          .values({
+            eventId: event.eventId,
+            transactionId: event.transactionId,
+            state: event.state,
+            amount: event.amount,
+            currency: event.currency,
+            occurredAt: new Date(event.occurredAt),
+          })
+          .onConflictDoNothing()
+          .returning({ eventId: ipayWebhookEvents.eventId });
+        if (!inserted) return "duplicate";
+
+        const [order] = await tx
+          .select()
+          .from(orders)
+          .where(eq(orders.paymentReference, event.transactionId))
+          .for("update");
+        if (
+          !order ||
+          order.paymentMethod !== "MTN Mobile Money" ||
+          order.totalAmount !== event.amount ||
+          order.currency !== event.currency
+        ) {
+          return "unmatched";
+        }
+        if (!canTransitionIpayState(order.paymentState, event.state)) return "ignored";
+
+        const changes: { paymentState: string; status?: string } = { paymentState: event.state };
+        if (event.state === "SUCCEEDED" && order.status === "pending") {
+          changes.status = "paid";
+        }
+        await tx.update(orders).set(changes).where(eq(orders.id, order.id));
+        return "recorded";
+      });
+
+      if (outcome === "unmatched") {
+        console.error("iPay webhook did not match a pending MTN order", event.eventId);
+      }
+      res.status(200).json({ received: true });
+    } catch (error) {
+      console.error("iPay webhook processing failed:", error);
+      res.status(500).json({ message: "Webhook processing failed" });
+    }
+  });
+
+  const ipayStatusLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.get("/api/orders/:trackingCode/payment-status", ipayStatusLimiter, async (req, res) => {
+    try {
+      const trackingCode = String(req.params.trackingCode || "");
+      const phone = typeof req.query.phone === "string" ? req.query.phone : "";
+      const order = await storage.getOrderByTrackingCode(trackingCode);
+      if (!order || !phonesMatch(order.customerPhone, phone)) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      if (order.paymentMethod !== "MTN Mobile Money" || !order.paymentReference) {
+        return res.status(400).json({ message: "This order has no iPay collection" });
+      }
+
+      const result = await checkIpayCollection(order.paymentReference);
+      if (result.amount !== order.totalAmount) {
+        console.error("iPay status amount did not match order", order.id);
+        return res.status(502).json({ message: "Unable to verify payment status" });
+      }
+      await applyIpayState(order.id, result.state, true);
+      const updatedOrder = await storage.getOrder(order.id);
+      res.json({
+        paymentState: updatedOrder?.paymentState || result.state,
+        orderStatus: updatedOrder?.status || order.status,
+      });
+    } catch (error) {
+      if (error instanceof IpayRequestError && error.status === 404) {
+        return res.status(404).json({ message: "Payment status not found yet" });
+      }
+      console.error("iPay status check failed:", error);
+      res.status(502).json({ message: "Unable to check payment status right now" });
+    }
+  });
+
   app.post("/api/orders", async (req, res) => {
     try {
       const data = req.body;
+      const isIpayMtn = data.paymentMethod === "MTN Mobile Money";
+      let paymentPhone: string | null = null;
+      let paymentReference: string | null = null;
+      if (isIpayMtn) {
+        if (!process.env.IPAY_API_KEY) {
+          return res.status(503).json({ message: "MTN Mobile Money checkout is not configured yet." });
+        }
+        if (process.env.IPAY_CALLBACK_URL && !process.env.IPAY_WEBHOOK_SECRET) {
+          return res.status(503).json({ message: "MTN Mobile Money checkout is not configured yet." });
+        }
+        try {
+          paymentPhone = normalizeRwandaPhone(String(data.paymentReference || ""));
+        } catch (error) {
+          return res.status(400).json({ message: error instanceof Error ? error.message : "Invalid MTN number" });
+        }
+        paymentReference = `DOPIK-${randomBytes(16).toString("hex").toUpperCase()}`;
+      }
 
       // Validate the Rwanda location combination when a structured location was submitted.
       // Orders without these fields (e.g. legacy clients) are still accepted.
@@ -1181,8 +1415,10 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       }
 
       // Calculate total amount from items to ensure accuracy
-      const items = data.items || [];
-      const itemsTotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+      const orderItems = isIpayMtn
+        ? await priceIpayOrderItems(data.items)
+        : (data.items || []);
+      const itemsTotal = orderItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
 
       // Look up the delivery fee server-side from the selected sector.
       // Never trust a client-submitted fee amount.
@@ -1195,13 +1431,61 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       }
       const calculatedTotal = itemsTotal + deliveryFee;
 
+      if (isIpayMtn && data.totalAmount !== calculatedTotal) {
+        return res.status(409).json({ message: "Product or delivery prices changed. Refresh your cart and try again." });
+      }
+      if (isIpayMtn && (!Number.isInteger(calculatedTotal) || calculatedTotal < 1 || calculatedTotal > 100_000_000)) {
+        return res.status(400).json({ message: "Order total is outside iPay's supported RWF range." });
+      }
+
       const order = await storage.createOrder({
         ...data,
+        items: orderItems,
+        paymentReference,
+        paymentPhone,
+        paymentState: isIpayMtn ? "CREATED" : null,
         deliveryFee,
         totalAmount: calculatedTotal
       });
+
+      let paymentMessage: string | undefined;
+      if (isIpayMtn && paymentPhone) {
+        try {
+          await initiateIpayCollection({
+            transactionId: paymentReference!,
+            amount: calculatedTotal,
+            phone: paymentPhone,
+            message: `DOPIK order ${order.trackingCode}`,
+          });
+        } catch (error) {
+          if (error instanceof IpayRequestError && error.status === 409) {
+            try {
+              const existing = await checkIpayCollection(paymentReference!);
+              if (existing.amount === calculatedTotal) {
+                await applyIpayState(order.id, existing.state, true);
+              } else {
+                paymentMessage = "We could not verify this payment request. Please contact us with your order tracking code.";
+              }
+            } catch (error) {
+              console.error("iPay duplicate transaction status check failed:", error);
+              paymentMessage = "We could not confirm the payment request. Please do not submit payment again; contact us with your order tracking code.";
+            }
+          } else if (
+            error instanceof IpayRequestError &&
+            (error.status === null || error.outcomeUnknown)
+          ) {
+            paymentMessage = "We could not confirm whether the payment prompt was sent. Please check your phone and do not submit payment again.";
+          } else {
+            console.error("iPay collection initiation failed:", error);
+            await applyIpayState(order.id, "FAILED");
+            paymentMessage = "We could not start the MTN payment. Please contact us with your order tracking code before trying again.";
+          }
+        }
+      }
+
       notifyNewOrder(order).catch(err => console.error("notifyNewOrder failed:", err));
-      res.status(201).json(order);
+      const latestOrder = isIpayMtn ? await storage.getOrder(order.id) : order;
+      res.status(201).json({ ...(latestOrder || order), ...(paymentMessage ? { paymentMessage } : {}) });
     } catch (error) {
       console.error("Order creation error:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Invalid order data" });
@@ -1211,6 +1495,9 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
   app.post("/api/orders/create", async (req, res) => {
     try {
       const data = req.body;
+      if (data.paymentMethod === "MTN Mobile Money") {
+        return res.status(400).json({ message: "MTN Mobile Money orders must use the verified checkout flow." });
+      }
 
       if (data.paymentMethod === "Card Payment" || data.paymentMethod === "PayPal") {
         if (!req.body.paymentReference) {
@@ -1249,6 +1536,13 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
 
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
+      }
+      if (
+        order.paymentMethod === "MTN Mobile Money" &&
+        nextStatus === "paid" &&
+        order.paymentState !== "SUCCEEDED"
+      ) {
+        return res.status(409).json({ message: "This MTN order cannot be marked paid until iPay confirms it." });
       }
 
       const currentStatus = order.status;

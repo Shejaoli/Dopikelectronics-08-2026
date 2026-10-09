@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, unique, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -70,12 +70,26 @@ export const orders = pgTable("orders", {
   paymentMethod: text("payment_method"),
   paymentProvider: text("payment_provider"), // stripe, paypal, manual
   paymentReference: text("payment_reference"), // stripe intent id or paypal order id
+  paymentPhone: text("payment_phone"),
+  paymentState: text("payment_state"),
   totalAmount: integer("total_amount").notNull(),
   deliveryFee: integer("delivery_fee").default(0),
   currency: text("currency").default("RWF").notNull(),
   status: text("status").notNull().default("pending"),
   items: jsonb("items").$type<{ productId: number; name: string; quantity: number; price: number; storage?: string; color?: string }[]>().notNull().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  paymentReferenceIdx: index("orders_payment_reference_idx").on(table.paymentReference),
+}));
+
+export const ipayWebhookEvents = pgTable("ipay_webhook_events", {
+  eventId: text("event_id").primaryKey(),
+  transactionId: text("transaction_id").notNull(),
+  state: text("state").notNull(),
+  amount: integer("amount").notNull(),
+  currency: text("currency").notNull(),
+  occurredAt: timestamp("occurred_at").notNull(),
+  receivedAt: timestamp("received_at").defaultNow().notNull(),
 });
 
 export const videos = pgTable("videos", {

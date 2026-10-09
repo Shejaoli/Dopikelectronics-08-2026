@@ -402,7 +402,7 @@ export default function AdminOrders() {
     }
   };
 
-  const getValidNextStatuses = (currentStatus: string) => {
+  const getValidNextStatuses = (order: any) => {
     const transitions: Record<string, string[]> = {
       "pending": ["paid", "cancelled", "failed"],
       "paid": ["processing", "cancelled", "refunded"],
@@ -413,7 +413,11 @@ export default function AdminOrders() {
       "failed": ["pending", "cancelled"],
       "refunded": []
     };
-    return transitions[currentStatus] || [];
+    const nextStatuses = transitions[order.status] || [];
+    if (order.paymentMethod === "MTN Mobile Money" && order.paymentState !== "SUCCEEDED") {
+      return nextStatuses.filter((status) => status !== "paid");
+    }
+    return nextStatuses;
   };
 
   return (
@@ -960,7 +964,7 @@ export default function AdminOrders() {
                       {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
                     </Badge>
 
-                    {getValidNextStatuses(selectedOrder.status).length > 0 && (
+                    {getValidNextStatuses(selectedOrder).length > 0 && (
                       <div className="flex items-center gap-2">
                         <Select 
                           value={pendingStatus || ""}
@@ -973,7 +977,7 @@ export default function AdminOrders() {
                             <SelectValue placeholder="Update Status" />
                           </SelectTrigger>
                           <SelectContent>
-                            {getValidNextStatuses(selectedOrder.status).map((s) => (
+                            {getValidNextStatuses(selectedOrder).map((s) => (
                               <SelectItem key={s} value={s} className="text-xs">
                                 {s.charAt(0).toUpperCase() + s.slice(1)}
                               </SelectItem>
@@ -1107,10 +1111,22 @@ export default function AdminOrders() {
                   <p className="text-sm font-medium text-muted-foreground">Payment Method</p>
                   <p className="text-base">{selectedOrder.paymentMethod || "—"}</p>
                 </div>
-                {selectedOrder.paymentReference && (
+                {selectedOrder.paymentPhone && (
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Paying-From Number</p>
+                    <p className="text-base font-mono font-semibold">{selectedOrder.paymentPhone}</p>
+                  </div>
+                )}
+                {selectedOrder.paymentReference && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Payment Reference</p>
                     <p className="text-base font-mono font-semibold">{selectedOrder.paymentReference}</p>
+                  </div>
+                )}
+                {selectedOrder.paymentState && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Payment State</p>
+                    <p className="text-base font-semibold">{selectedOrder.paymentState}</p>
                   </div>
                 )}
               </div>

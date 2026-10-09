@@ -439,6 +439,24 @@ function CheckoutSingle({
 
 function OrderConfirmation({ order, formatPrice }: { order: any; formatPrice: (p: number) => string }) {
   const { toast } = useToast();
+  const isIpayMtnOrder = order?.paymentMethod === "MTN Mobile Money" && !!order?.paymentReference;
+  const paymentStatusQuery = useQuery<{ paymentState: string; orderStatus: string }, Error>({
+    queryKey: ["ipay-payment-status", order?.trackingCode, order?.customerPhone],
+    enabled: isIpayMtnOrder && !!order?.trackingCode && !!order?.customerPhone,
+    queryFn: async () => {
+      const params = new URLSearchParams({ phone: order.customerPhone });
+      const response = await fetch(
+        `/api/orders/${encodeURIComponent(order.trackingCode)}/payment-status?${params}`,
+      );
+      if (!response.ok) throw new Error("Payment status is not available yet");
+      return response.json();
+    },
+    refetchInterval: (query) => {
+      const state = query.state.data?.paymentState || order?.paymentState;
+      return state === "SUCCEEDED" || state === "FAILED" || state === "CANCELLED" ? false : 5000;
+    },
+  });
+  const paymentState = paymentStatusQuery.data?.paymentState || order?.paymentState || "CREATED";
 
   const copyTrackingCode = () => {
     if (!order?.trackingCode) return;
@@ -459,9 +477,25 @@ function OrderConfirmation({ order, formatPrice }: { order: any; formatPrice: (p
             <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
               <CheckCircle2 className="w-10 h-10 text-primary" />
             </div>
-            <h1 className="text-3xl font-black tracking-tighter">Order Placed Successfully!</h1>
+            <h1 className="text-3xl font-black tracking-tighter">
+              {isIpayMtnOrder && paymentState === "SUCCEEDED"
+                ? "MTN Payment Confirmed!"
+                : isIpayMtnOrder && (paymentState === "FAILED" || paymentState === "CANCELLED")
+                  ? "MTN Payment Not Completed"
+                  : isIpayMtnOrder
+                    ? "Approve the MTN Payment"
+                    : "Order Placed Successfully!"}
+            </h1>
             <p className="text-muted-foreground text-base">
-              Thank you{order?.customerName ? `, ${order.customerName}` : ""}. We've received your order and will be in touch shortly.
+              {isIpayMtnOrder && paymentState === "SUCCEEDED"
+                  ? `Thank you${order?.customerName ? `, ${order.customerName}` : ""}. Your payment has been confirmed.`
+                  : isIpayMtnOrder && order?.paymentMessage
+                    ? order.paymentMessage
+                  : isIpayMtnOrder && (paymentState === "FAILED" || paymentState === "CANCELLED")
+                    ? "The payment was not completed. Contact us with your order tracking code before trying again."
+                    : isIpayMtnOrder
+                      ? "Check your phone and approve the MTN Mobile Money prompt. Keep this page open while we confirm the payment. Do not submit another payment while it is processing."
+                      : `Thank you${order?.customerName ? `, ${order.customerName}` : ""}. We've received your order and will be in touch shortly.`}
             </p>
           </div>
 
