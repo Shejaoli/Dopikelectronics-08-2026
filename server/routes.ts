@@ -8,7 +8,7 @@ import { db } from "./db";
 import { eq, count, desc, inArray } from "drizzle-orm";
 import { OAuth2Client } from "google-auth-library";
 import { randomBytes } from "crypto";
-import { insertProductSchema, insertOrderSchema, orders, ipayWebhookEvents, insertVideoSchema, videos, admins, insertHomeSectionSchema, products, insertCouponCodeSchema } from "@shared/schema";
+import { insertProductSchema, insertOrderSchema, orders, ipayWebhookEvents, insertVideoSchema, videos, admins, insertHomeSectionSchema, products, insertCouponCodeSchema, type Order } from "@shared/schema";
 import { isValidRwandaLocation } from "@shared/rwanda-locations";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
@@ -18,7 +18,7 @@ import express from "express";
 import Stripe from "stripe";
 import { Buffer } from "buffer";
 import ffmpeg from "fluent-ffmpeg";
-import { notifyNewOrder, notifyNewCustomer } from "./notifications";
+import { notifyNewOrder, notifyNewCustomer, notifyCustomerOrderConfirmation, notifyCustomerOrderStatus, notifyCustomerPaymentStatus } from "./notifications";
 import { canTransitionIpayState, checkIpayCollection, IpayRequestError, initiateIpayCollection, verifyIpayWebhookSignature, type IpayState, type IpayWebhookEvent } from "./ipay";
 
 // Video compression utility
@@ -141,8 +141,8 @@ function phonesMatch(first: string, second: string): boolean {
   return normalize(first) === normalize(second);
 }
 
-async function applyIpayState(orderId: number, state: IpayState, reconcile = false): Promise<void> {
-  await db.transaction(async (tx) => {
+async function applyIpayState(orderId: number, state: IpayState, reconcile = false): Promise<Order | undefined> {
+  const updated = await db.transaction(async (tx) => {
     const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update");
     if (!order) return;
     if (["SUCCEEDED", "FAILED", "CANCELLED"].includes(order.paymentState || "")) return;
@@ -152,8 +152,13 @@ async function applyIpayState(orderId: number, state: IpayState, reconcile = fal
     if (state === "SUCCEEDED" && order.status === "pending") {
       changes.status = "paid";
     }
-    await tx.update(orders).set(changes).where(eq(orders.id, orderId));
+    const [updated] = await tx.update(orders).set(changes).where(eq(orders.id, orderId)).returning();
+    return updated;
   });
+  if (updated) {
+    notifyCustomerPaymentStatus(updated).catch((error) => console.error("Customer payment email failed:", error));
+  }
+  return updated;
 }
 
 let sharpModule: any = null;
@@ -1334,6 +1339,12 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       if (outcome === "unmatched") {
         console.error("iPay webhook did not match a pending MTN order", event.eventId);
       }
+      if (outcome === "recorded") {
+        const [updatedOrder] = await db.select().from(orders).where(eq(orders.paymentReference, event.transactionId));
+        if (updatedOrder) {
+          notifyCustomerPaymentStatus(updatedOrder).catch((error) => console.error("Customer payment email failed:", error));
+        }
+      }
       res.status(200).json({ received: true });
     } catch (error) {
       console.error("iPay webhook processing failed:", error);
@@ -1485,6 +1496,7 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
 
       notifyNewOrder(order).catch(err => console.error("notifyNewOrder failed:", err));
       const latestOrder = isIpayMtn ? await storage.getOrder(order.id) : order;
+      notifyCustomerOrderConfirmation(latestOrder || order).catch((error) => console.error("Customer order email failed:", error));
       res.status(201).json({ ...(latestOrder || order), ...(paymentMessage ? { paymentMessage } : {}) });
     } catch (error) {
       console.error("Order creation error:", error);
@@ -1511,6 +1523,7 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
         paymentReference: req.body.paymentReference,
         status: "paid"
       });
+      notifyCustomerOrderConfirmation(order).catch((error) => console.error("Customer order email failed:", error));
       res.status(201).json(order);
     } catch (error) {
       console.error("Order create custom error:", error);
@@ -1568,6 +1581,9 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       }
 
       const updated = await storage.updateOrderStatus(id, nextStatus);
+      if (updated.status !== currentStatus) {
+        notifyCustomerOrderStatus(updated).catch((error) => console.error("Customer order status email failed:", error));
+      }
 
       // Detailed audit log for status change
       await storage.createAuditLog({
@@ -1885,7 +1901,8 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       const [order] = await db.select().from(orders).where(eq(orders.paymentReference, paymentIntent.id));
 
       if (order && order.status !== 'paid') {
-        await storage.updateOrderStatus(order.id, 'paid');
+        const updated = await storage.updateOrderStatus(order.id, 'paid');
+        notifyCustomerOrderStatus(updated).catch((error) => console.error("Customer order status email failed:", error));
       }
     }
 
@@ -1904,7 +1921,8 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       const [order] = await db.select().from(orders).where(eq(orders.paymentReference, orderId));
 
       if (order && order.status !== 'paid') {
-        await storage.updateOrderStatus(order.id, 'paid');
+        const updated = await storage.updateOrderStatus(order.id, 'paid');
+        notifyCustomerOrderStatus(updated).catch((error) => console.error("Customer order status email failed:", error));
       }
     }
 
