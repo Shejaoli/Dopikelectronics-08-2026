@@ -107,32 +107,82 @@ function getCustomerPaymentStatus(order: Order): string {
   return "Awaiting confirmation";
 }
 
+function formatOrderAmount(amount: number, currency: string): string {
+  return `${amount.toLocaleString()} ${escapeHtml(currency)}`;
+}
+
 function renderOrderSummary(order: Order): string {
   const rows = (order.items || []).map((item) => `
     <tr>
-      <td style="padding:8px;border-bottom:1px solid #e5e7eb">${escapeHtml(item.name)}${item.storage ? ` (${escapeHtml(item.storage)})` : ""}${item.color ? ` / ${escapeHtml(item.color)}` : ""}</td>
-      <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center">${item.quantity}</td>
-      <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right">${(item.price * item.quantity).toLocaleString()} ${escapeHtml(order.currency)}</td>
+      <td style="padding:14px 12px;border-bottom:1px solid #e8edf5;color:#182230;font-size:14px;line-height:20px">
+        <strong>${escapeHtml(item.name)}</strong>
+        ${item.storage ? `<br><span style="color:#64748b;font-size:12px">${escapeHtml(item.storage)}</span>` : ""}
+        ${item.color ? `<span style="color:#64748b;font-size:12px">${item.storage ? " · " : "<br>"}${escapeHtml(item.color)}</span>` : ""}
+      </td>
+      <td style="padding:14px 8px;border-bottom:1px solid #e8edf5;text-align:center;color:#475569;font-size:14px;vertical-align:top">${item.quantity}</td>
+      <td style="padding:14px 12px;border-bottom:1px solid #e8edf5;text-align:right;color:#182230;font-size:14px;white-space:nowrap;vertical-align:top">${formatOrderAmount(item.price * item.quantity, order.currency)}</td>
     </tr>
   `).join("");
-  const tracking = order.trackingCode ? escapeHtml(order.trackingCode) : `#${order.id}`;
+  const tracking = order.trackingCode ? escapeHtml(order.trackingCode) : String(order.id);
+  const status = escapeHtml(order.status.replace(/[_-]/g, " "));
+  const paymentStatus = getCustomerPaymentStatus(order);
+  const paymentTone = paymentStatus === "Paid"
+    ? { background: "#e8f8ef", color: "#137a43" }
+    : paymentStatus === "Not completed"
+      ? { background: "#fff0ed", color: "#b93825" }
+      : { background: "#fff7df", color: "#8a5a00" };
 
   return `
-    <p><strong>Order:</strong> ${tracking}</p>
-    <p><strong>Order status:</strong> ${escapeHtml(order.status)}</p>
-    <p><strong>Payment status:</strong> ${escapeHtml(getCustomerPaymentStatus(order))}</p>
-    <p><strong>Payment method:</strong> ${escapeHtml(order.paymentMethod || "Not specified")}</p>
-    <table style="width:100%;border-collapse:collapse;margin:16px 0">
-      <thead><tr>
-        <th style="padding:8px;text-align:left;border-bottom:1px solid #d1d5db">Item</th>
-        <th style="padding:8px;text-align:center;border-bottom:1px solid #d1d5db">Qty</th>
-        <th style="padding:8px;text-align:right;border-bottom:1px solid #d1d5db">Amount</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e3eaf4;border-radius:14px;border-collapse:separate;background:#ffffff">
+      <tr><td style="padding:20px 20px 8px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-size:12px;letter-spacing:1.2px;font-weight:bold;color:#64748b">ORDER SUMMARY</td>
+            <td align="right" style="font-size:13px;color:#64748b">#${tracking}</td>
+          </tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding:8px 20px 16px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding:0 0 12px;color:#64748b;font-size:13px">Order status</td>
+            <td align="right" style="padding:0 0 12px;text-align:right;color:#182230;font-size:13px;font-weight:bold;text-transform:capitalize">${status}</td>
+          </tr>
+          <tr>
+            <td style="color:#64748b;font-size:13px">Payment status</td>
+            <td align="right" style="text-align:right"><span style="display:inline-block;padding:6px 10px;border-radius:20px;background:${paymentTone.background};color:${paymentTone.color};font-size:12px;font-weight:bold">${escapeHtml(paymentStatus)}</span></td>
+          </tr>
+          <tr>
+            <td style="padding-top:12px;color:#64748b;font-size:13px">Payment method</td>
+            <td align="right" style="padding-top:12px;text-align:right;color:#182230;font-size:13px">${escapeHtml(order.paymentMethod || "Not specified")}</td>
+          </tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding:0 20px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+          <thead><tr style="background:#f4f7fb">
+            <th align="left" style="padding:10px 12px;color:#64748b;font-size:11px;letter-spacing:.6px">ITEM</th>
+            <th align="center" style="padding:10px 8px;color:#64748b;font-size:11px;letter-spacing:.6px">QTY</th>
+            <th align="right" style="padding:10px 12px;color:#64748b;font-size:11px;letter-spacing:.6px">AMOUNT</th>
+          </tr></thead>
+          <tbody>${rows || `<tr><td colspan="3" style="padding:16px 12px;color:#64748b;font-size:13px">Order items</td></tr>`}</tbody>
+        </table>
+      </td></tr>
+      <tr><td style="padding:16px 20px 20px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:5px 0;color:#64748b;font-size:13px">Delivery</td><td align="right" style="padding:5px 0;color:#182230;font-size:13px">${formatOrderAmount(order.deliveryFee || 0, order.currency)}</td></tr>
+          <tr><td style="padding-top:14px;border-top:1px solid #e8edf5;color:#182230;font-size:16px;font-weight:bold">Total</td><td align="right" style="padding-top:14px;border-top:1px solid #e8edf5;color:#0066ff;font-size:18px;font-weight:bold;white-space:nowrap">${formatOrderAmount(order.totalAmount, order.currency)}</td></tr>
+        </table>
+      </td></tr>
     </table>
-    <p><strong>Delivery:</strong> ${(order.deliveryFee || 0).toLocaleString()} ${escapeHtml(order.currency)}</p>
-    <p style="font-size:18px"><strong>Total:</strong> ${order.totalAmount.toLocaleString()} ${escapeHtml(order.currency)}</p>
-    ${order.trackingCode ? `<p>You can check your order status using tracking code <strong>${tracking}</strong> and the phone number used at checkout.</p>` : ""}
+    ${order.trackingCode ? `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px">
+        <tr><td align="center">
+          <a href="https://dopikelectronics.com/track-order" style="display:inline-block;background:#0066ff;border-radius:10px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:13px 22px">Track your order</a>
+        </td></tr>
+        <tr><td align="center" style="padding-top:10px;color:#64748b;font-size:12px;line-height:18px">Tracking code: <strong style="color:#182230">${tracking}</strong><br>Use the phone number from checkout to look up your order.</td></tr>
+      </table>
+    ` : ""}
   `;
 }
 
@@ -144,15 +194,35 @@ async function sendCustomerEmail(order: Order, subject: string, heading: string,
     await transport.sendMail({
       from: process.env.CUSTOMER_GMAIL_USER || "dopikelectronics@gmail.com",
       to: order.customerEmail,
+      text: `${heading}\n\nHello ${order.customerName},\n\n${message}\n\nOrder ${order.trackingCode || `#${order.id}`} | Order status: ${order.status} | Payment status: ${getCustomerPaymentStatus(order)}\nTotal: ${order.totalAmount.toLocaleString()} ${order.currency}\n\nThank you for shopping with DOPIK Electronics.`,
       subject,
       html: `
-        <div style="font-family:Arial,sans-serif;color:#111827;max-width:640px;margin:0 auto">
-          <h2>${escapeHtml(heading)}</h2>
-          <p>Hello ${escapeHtml(order.customerName)},</p>
-          <p>${escapeHtml(message)}</p>
-          ${renderOrderSummary(order)}
-          <p>Thank you for shopping with DOPIK Electronics.</p>
-        </div>
+        <div style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all">${escapeHtml(message)}</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background:#f2f5fa;font-family:Arial,Helvetica,sans-serif;color:#182230">
+          <tr><td align="center" style="padding:28px 12px">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:18px;overflow:hidden">
+              <tr><td style="height:7px;background:#0066ff;font-size:0;line-height:0">&nbsp;</td></tr>
+              <tr><td style="padding:24px 28px;border-bottom:1px solid #edf1f6">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                  <td width="58" valign="middle"><img src="https://dopikelectronics.com/images/logo.png" width="48" height="48" alt="DOPIK Electronics" style="display:block;width:48px;height:48px;object-fit:contain;border:0"></td>
+                  <td valign="middle" style="font-size:20px;line-height:24px;font-weight:bold;letter-spacing:-.4px;color:#111827">DOPIK <span style="color:#0066ff">ELECTRONICS</span><br><span style="font-size:11px;line-height:18px;font-weight:normal;letter-spacing:1.2px;color:#64748b">WHERE GADGETS MEET GREAT DEALS</span></td>
+                  <td align="right" valign="middle" style="font-size:11px;color:#64748b">ORDER UPDATE</td>
+                </tr></table>
+              </td></tr>
+              <tr><td style="padding:30px 28px 14px">
+                <div style="font-size:12px;font-weight:bold;letter-spacing:1.1px;color:#0066ff;text-transform:uppercase">Hello ${escapeHtml(order.customerName)}</div>
+                <h1 style="margin:9px 0 10px;font-size:26px;line-height:32px;letter-spacing:-.6px;color:#111827">${escapeHtml(heading)}</h1>
+                <p style="margin:0;color:#64748b;font-size:14px;line-height:22px">${escapeHtml(message)}</p>
+              </td></tr>
+              <tr><td style="padding:12px 28px 28px">${renderOrderSummary(order)}</td></tr>
+              <tr><td style="padding:20px 28px;background:#f7f9fc;border-top:1px solid #edf1f6;text-align:center">
+                <p style="margin:0 0 7px;color:#334155;font-size:13px;font-weight:bold">Thank you for choosing DOPIK Electronics</p>
+                <p style="margin:0;color:#64748b;font-size:12px;line-height:19px">Questions about your order? <a href="mailto:dopikelectronics@gmail.com" style="color:#0066ff;text-decoration:none">Contact our team</a></p>
+                <p style="margin:12px 0 0;color:#94a3b8;font-size:11px">Kigali, Rwanda · <a href="https://dopikelectronics.com" style="color:#64748b;text-decoration:none">dopikelectronics.com</a></p>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
       `,
     });
   } catch (error) {
