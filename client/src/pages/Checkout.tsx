@@ -12,7 +12,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, MessageCircle, Truck, CreditCard as CardIcon, Wallet, Calendar as CalendarIcon, Package, ArrowLeft, ArrowRight, ChevronRight, Copy, MapPin } from "lucide-react";
+import { CheckCircle2, MessageCircle, Truck, CreditCard as CardIcon, Wallet, Calendar as CalendarIcon, Package, ArrowLeft, ArrowRight, ChevronRight, Copy, MapPin, Mail } from "lucide-react";
 import { SiVisa, SiMastercard } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
@@ -512,6 +512,21 @@ function OrderConfirmation({ order, formatPrice }: { order: any; formatPrice: (p
                 Save this code — use it with your phone number on the{" "}
                 <Link href="/track-order" className="underline font-bold text-foreground">Track Order</Link> page to check your order status anytime.
               </p>
+            </div>
+          )}
+
+          {order?.customerEmail && (
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+              <div className="mt-0.5 rounded-full bg-primary/10 p-2 text-primary">
+                <Mail className="h-4 w-4" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-sm">Your order details are on the way</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  We’re sending your confirmation to <span className="font-semibold text-foreground break-all">{order.customerEmail}</span>.
+                  {" "}Please check your inbox and your Spam/Junk folder. We’ll email you again when your payment or order status changes.
+                </p>
+              </div>
             </div>
           )}
 
