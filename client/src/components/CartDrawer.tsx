@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ShoppingBag, X, Plus, Minus, Trash2 } from "lucide-react";
+import { ShoppingBag, Plus, Minus, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,20 +24,18 @@ export function CartDrawer() {
 
   useEffect(() => {
     const loadCart = () => {
-      const savedCart = localStorage.getItem("cart");
-      if (savedCart) {
-        setCart(JSON.parse(savedCart));
+      try {
+        const savedCart = localStorage.getItem("cart");
+        setCart(savedCart ? JSON.parse(savedCart) : []);
+      } catch {
+        setCart([]);
       }
     };
 
-    if (isOpen) {
-      loadCart();
-    }
-    
-    // Listen for storage changes (for cross-tab or same-tab updates)
+    loadCart();
     window.addEventListener("storage", loadCart);
     return () => window.removeEventListener("storage", loadCart);
-  }, [isOpen]);
+  }, []);
 
   const updateQuantity = (index: number, delta: number) => {
     const newCart = [...cart];
@@ -45,17 +43,20 @@ export function CartDrawer() {
     newCart[index].totalPrice = newCart[index].quantity * newCart[index].price;
     setCart(newCart);
     localStorage.setItem("cart", JSON.stringify(newCart));
+    window.dispatchEvent(new Event("storage"));
   };
 
   const removeItem = (index: number) => {
     const newCart = cart.filter((_, i) => i !== index);
     setCart(newCart);
     localStorage.setItem("cart", JSON.stringify(newCart));
+    window.dispatchEvent(new Event("storage"));
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
   const deliveryFee = 0; // Default delivery fee
   const total = subtotal + deliveryFee;
+  const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(price);
@@ -75,6 +76,26 @@ export function CartDrawer() {
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Shopping cart, ${cartCount} items`}
+          title="Shopping cart"
+          data-testid="button-header-cart"
+          className="relative inline-flex items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-gray-700 transition-colors hover:bg-accent/60 hover:text-primary dark:text-gray-200"
+        >
+          <ShoppingBag className="h-5 w-5" />
+          <span className="hidden xl:inline">Cart</span>
+          {cartCount > 0 && (
+            <span
+              data-testid="badge-header-cart-count"
+              className="absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground"
+            >
+              {cartCount > 99 ? "99+" : cartCount}
+            </span>
+          )}
+        </button>
+      </SheetTrigger>
       <SheetContent className="flex w-full flex-col sm:max-w-md">
         <SheetHeader className="flex flex-row items-center justify-between border-b pb-4">
           <SheetTitle className="text-xl font-bold">Your Cart</SheetTitle>
@@ -167,6 +188,16 @@ export function CartDrawer() {
                   }}
                 >
                   Checkout Now
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsOpen(false);
+                    setLocation("/cart");
+                  }}
+                  className="w-full"
+                >
+                  View Full Cart
                 </Button>
                 <a 
                   href={generateWhatsAppUrl()} 

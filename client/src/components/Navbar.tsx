@@ -449,6 +449,7 @@ export function Navbar() {
 
             {/* Theme Toggle on mobile */}
             <ThemeToggle />
+            <CartDrawer />
           </div>
 
           {/* Row 2: Inline Search Bar (noon style) */}
@@ -514,10 +515,6 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* Desktop Actions */}
-          <div className="flex items-center gap-4">
-            <CartDrawer />
-          </div>
         </div>
       </nav>
     </header>
