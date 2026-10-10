@@ -57,7 +57,7 @@ const ipayWebhookSchema = z.object({
 
 function normalizeRwandaPhone(value: string): string {
   const digits = value.replace(/\D/g, "");
-  if (/^0(78|79)\d{7}$/.test(digits)) return `25${digits.slice(1)}`;
+  if (/^0(78|79)\d{7}$/.test(digits)) return `250${digits.slice(1)}`;
   if (/^250(78|79)\d{7}$/.test(digits)) return digits;
   throw new Error("Enter an MTN Rwanda number starting with 078 or 079");
 }
@@ -136,7 +136,7 @@ async function priceIpayOrderItems(value: unknown): Promise<{
 function phonesMatch(first: string, second: string): boolean {
   const normalize = (phone: string) => {
     const digits = phone.replace(/\D/g, "");
-    return /^0\d{9}$/.test(digits) ? `25${digits.slice(1)}` : digits;
+    return /^0\d{9}$/.test(digits) ? `250${digits.slice(1)}` : digits;
   };
   return normalize(first) === normalize(second);
 }
