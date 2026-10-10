@@ -199,6 +199,7 @@ function CheckoutSingle({
     onSuccess: (order) => {
       setCreatedOrder(order);
       localStorage.removeItem("cart");
+      window.dispatchEvent(new Event("storage"));
       localStorage.removeItem("checkout_shipping");
       setLocation("/order-success");
     },

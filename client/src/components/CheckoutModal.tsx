@@ -75,6 +75,7 @@ export function CheckoutModal({ product, quantity, open, onOpenChange, selectedS
       const whatsappUrl = `https://wa.me/250783562143?text=${encodeURIComponent(message)}`;
 
       localStorage.removeItem("cart"); // Clear cart if single product checkout
+      window.dispatchEvent(new Event("storage"));
       onOpenChange(false);
       form.reset();
 

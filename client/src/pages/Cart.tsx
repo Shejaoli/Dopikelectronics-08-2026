@@ -5,30 +5,42 @@ import { Footer } from "@/components/Footer";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, ArrowLeft, Sparkles, Truck, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useProducts } from "@/hooks/use-products";
+import { useToast } from "@/hooks/use-toast";
+import type { Product } from "@shared/schema";
 
 interface CartItem {
   productId: number;
   name: string;
   price: number;
-  originalPrice?: number;
   totalPrice: number;
   quantity: number;
   storage: string;
   color: string;
   imageUrl: string;
+  originalPrice?: number;
 }
 
 export default function Cart() {
   const [, setLocation] = useLocation();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const { toast } = useToast();
+  const { data: products = [] } = useProducts();
 
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart");
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    }
+    const loadCart = () => {
+      try {
+        const savedCart = localStorage.getItem("cart");
+        setCart(savedCart ? JSON.parse(savedCart) : []);
+      } catch {
+        setCart([]);
+      }
+    };
+    loadCart();
+    window.addEventListener("storage", loadCart);
+    return () => window.removeEventListener("storage", loadCart);
   }, []);
 
   const updateQuantity = (index: number, delta: number) => {
@@ -47,6 +59,42 @@ export default function Cart() {
     window.dispatchEvent(new Event("storage"));
   };
 
+  const addRecommendedProduct = (product: Product) => {
+    const hasDiscount = product.isHotDeal && (product.hotDealDiscount || 0) > 0;
+    const price = hasDiscount
+      ? Math.round(product.price * (1 - (product.hotDealDiscount || 0) / 100))
+      : product.price;
+    const newCart = [...cart];
+    const existingIndex = newCart.findIndex(
+      (item) => item.productId === product.id && !item.storage && !item.color
+    );
+
+    if (existingIndex >= 0) {
+      newCart[existingIndex] = {
+        ...newCart[existingIndex],
+        quantity: newCart[existingIndex].quantity + 1,
+        totalPrice: (newCart[existingIndex].quantity + 1) * newCart[existingIndex].price,
+      };
+    } else {
+      newCart.push({
+        productId: product.id,
+        name: product.name,
+        price,
+        originalPrice: hasDiscount ? product.price : undefined,
+        totalPrice: price,
+        quantity: 1,
+        storage: "",
+        color: "",
+        imageUrl: product.imageUrl,
+      });
+    }
+
+    setCart(newCart);
+    localStorage.setItem("cart", JSON.stringify(newCart));
+    window.dispatchEvent(new Event("storage"));
+    toast({ title: "Added to cart", description: `${product.name} added to your cart.` });
+  };
+
   const goToCheckout = () => {
     localStorage.removeItem("checkout_shipping");
     setLocation("/checkout/shipping");
@@ -55,6 +103,18 @@ export default function Cart() {
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
   const deliveryFee = 0;
   const total = subtotal + deliveryFee;
+  const cartProductIds = new Set(cart.map((item) => item.productId));
+  const cartCategories = new Set(
+    cart.map((item) => products.find((product) => product.id === item.productId)?.category).filter(Boolean)
+  );
+  const availableRecommendations = products.filter(
+    (product) => product.stockStatus === "in_stock" && !cartProductIds.has(product.id)
+  );
+  const recommendations = [
+    ...availableRecommendations.filter((product) => cartCategories.has(product.category)),
+    ...availableRecommendations.filter((product) => !cartCategories.has(product.category) && (product.isHotDeal || product.isFeatured)),
+    ...availableRecommendations.filter((product) => !cartCategories.has(product.category) && !product.isHotDeal && !product.isFeatured),
+  ].slice(0, 6);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF', maximumFractionDigits: 0 }).format(price);
@@ -70,7 +130,14 @@ export default function Cart() {
           <Link href="/shop" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="mr-2 h-4 w-4" /> Continue Shopping
           </Link>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Shopping Cart</h1>
+          <div className="mt-3 flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Shopping Cart</h1>
+            {cart.length > 0 && (
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
+                {cart.reduce((sum, item) => sum + item.quantity, 0)} {cart.reduce((sum, item) => sum + item.quantity, 0) === 1 ? "item" : "items"}
+              </span>
+            )}
+          </div>
         </div>
 
         {cart.length === 0 ? (
@@ -106,39 +173,63 @@ export default function Cart() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95, x: -20 }}
-                    className="group relative flex gap-4 p-4 sm:p-5 bg-card rounded-2xl border border-border hover:shadow-md transition-all"
+                    className="group relative flex gap-3 rounded-2xl border border-border bg-card p-3 transition-all hover:border-primary/25 hover:shadow-md sm:gap-5 sm:p-4"
                   >
-                    <div className="h-20 w-20 sm:h-28 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl border border-border bg-white p-3">
+                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-border bg-white p-2 sm:h-28 sm:w-28 sm:p-3">
                       <img
                         src={item.imageUrl}
                         alt={item.name}
-                        className="h-full w-full object-contain transition-transform group-hover:scale-110"
+                        className="h-full w-full object-contain transition-transform group-hover:scale-105"
                       />
                     </div>
 
-                    <div className="flex flex-1 flex-col justify-between min-w-0">
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="min-w-0">
-                          <h3 className="text-base font-bold text-foreground sm:text-lg line-clamp-1">{item.name}</h3>
-                          <div className="mt-1 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            <span className="bg-muted px-2 py-0.5 rounded">{item.storage}</span>
-                            <span className="bg-muted px-2 py-0.5 rounded">{item.color}</span>
+                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 sm:flex-row sm:gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-start justify-between gap-2 sm:block">
+                          <div className="min-w-0">
+                            {(() => {
+                              const product = products.find((entry) => entry.id === item.productId);
+                              return (
+                                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                  {product?.brand || "DOPIK Electronics"}
+                                </p>
+                              );
+                            })()}
+                            <h3 className="line-clamp-2 text-sm font-bold leading-snug text-foreground sm:text-base">{item.name}</h3>
                           </div>
+                          <p className="shrink-0 text-sm font-black text-primary sm:hidden">{formatPrice(item.totalPrice)}</p>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-base font-bold text-primary sm:text-lg">{formatPrice(item.totalPrice)}</p>
-                          {item.originalPrice && item.originalPrice > item.price && (
-                            <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                              <span className="text-xs text-muted-foreground line-through">{formatPrice(item.originalPrice * item.quantity)}</span>
-                              <span className="text-[10px] font-black text-white bg-green-600 px-1.5 py-0.5 rounded-full">
-                                {Math.round((1 - item.price / item.originalPrice) * 100)}% OFF
-                              </span>
-                            </div>
-                          )}
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {(() => {
+                            const product = products.find((entry) => entry.id === item.productId);
+                            const features = [
+                              item.storage,
+                              item.color,
+                              ...Object.values(product?.specs || {}).slice(0, 3),
+                            ].filter(Boolean).slice(0, 3);
+                            if (features.length === 0 && product?.category) features.push(product.category);
+                            return features.map((feature) => (
+                            <span key={feature} className="rounded-md border border-border bg-muted/60 px-2 py-1 text-[10px] font-medium text-muted-foreground sm:text-xs">
+                              {feature}
+                            </span>
+                            ));
+                          })()}
                         </div>
+                        {item.originalPrice && item.originalPrice > item.price && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            <span className="line-through">{formatPrice(item.originalPrice * item.quantity)}</span>
+                            <span className="ml-2 font-bold text-green-600">
+                              {Math.round((1 - item.price / item.originalPrice) * 100)}% off
+                            </span>
+                          </p>
+                        )}
                       </div>
 
-                      <div className="mt-4 flex items-center justify-between">
+                      <div className="flex shrink-0 items-end justify-between gap-2 sm:min-w-32 sm:flex-col sm:items-end">
+                        <div className="hidden text-right sm:block">
+                          <p className="text-base font-black text-primary">{formatPrice(item.totalPrice)}</p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{formatPrice(item.price)} each</p>
+                        </div>
                         <div className="flex items-center gap-1 rounded-xl border border-border bg-background p-1 shadow-sm">
                           <Button
                             variant="ghost"
@@ -146,6 +237,7 @@ export default function Cart() {
                             className="h-8 w-8 rounded-lg"
                             onClick={() => updateQuantity(index, -1)}
                             disabled={item.quantity <= 1}
+                            aria-label={`Decrease quantity of ${item.name}`}
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
@@ -155,6 +247,7 @@ export default function Cart() {
                             size="icon"
                             className="h-8 w-8 rounded-lg"
                             onClick={() => updateQuantity(index, 1)}
+                            aria-label={`Increase quantity of ${item.name}`}
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
@@ -187,7 +280,7 @@ export default function Cart() {
                     <span className="font-bold text-foreground">{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
-                    <span className="font-medium">Delivery</span>
+                    <span className="inline-flex items-center gap-1.5 font-medium"><Truck className="h-4 w-4 text-primary" /> Delivery</span>
                     <span className="font-bold text-green-500">{deliveryFee === 0 ? "FREE" : formatPrice(deliveryFee)}</span>
                   </div>
                   <Separator className="my-4" />
@@ -214,12 +307,81 @@ export default function Cart() {
                 </div>
 
                 <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                  <ShoppingBag className="h-4 w-4" />
+                  <ShieldCheck className="h-4 w-4" />
                   <span>100% Secure Checkout</span>
                 </div>
               </div>
             </div>
           </div>
+        )}
+
+        {recommendations.length > 0 && (
+          <section className="mt-10 sm:mt-12" aria-labelledby="cart-recommendations-title">
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
+                  <Sparkles className="h-4 w-4" /> Picked for you
+                </p>
+                <h2 id="cart-recommendations-title" className="text-xl font-bold tracking-tight sm:text-2xl">
+                  Recommended for you
+                </h2>
+              </div>
+              <Link href="/shop" className="shrink-0 text-sm font-semibold text-primary hover:underline">
+                Browse all
+              </Link>
+            </div>
+            <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+              {recommendations.map((product) => {
+                const isDeal = product.isHotDeal && (product.hotDealDiscount || 0) > 0;
+                const price = isDeal
+                  ? Math.round(product.price * (1 - (product.hotDealDiscount || 0) / 100))
+                  : product.price;
+                return (
+                  <article
+                    key={product.id}
+                    className="w-40 shrink-0 snap-start overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/30 sm:w-auto"
+                  >
+                    <Link href={`/product/${product.slug}`} className="block">
+                      <div className="relative flex aspect-square items-center justify-center bg-white p-3">
+                        <img
+                          src={product.imageUrl || "/placeholder.png"}
+                          alt={product.name}
+                          loading="lazy"
+                          className="h-full w-full object-contain"
+                          onError={(event) => { event.currentTarget.src = "/placeholder.png"; }}
+                        />
+                        {isDeal && (
+                          <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
+                            {product.hotDealDiscount}% OFF
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                    <div className="p-3">
+                      <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {product.brand}
+                      </p>
+                      <Link href={`/product/${product.slug}`}>
+                        <h3 className="mt-1 line-clamp-2 min-h-9 text-xs font-semibold leading-snug hover:text-primary">
+                          {product.name}
+                        </h3>
+                      </Link>
+                      <p className="mt-2 truncate text-sm font-black text-primary">{formatPrice(price)}</p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="mt-3 h-9 w-full rounded-lg text-xs font-bold"
+                        onClick={() => addRecommendedProduct(product)}
+                        data-testid={`button-add-recommendation-${product.id}`}
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Add to cart
+                      </Button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
         )}
 
         {/* Spacer so the mobile sticky checkout bar never covers the last item/summary */}
