@@ -359,7 +359,7 @@ function CheckoutSingle({
                               <Wallet className="h-5 w-5 text-primary" />
                               MTN Mobile Money
                             </FormLabel>
-                            <img src="/images/mtn-momo-logo.png" alt="MTN MoMo from MTN" className="h-10 w-32 object-contain" />
+                            <img src="/images/mtn-momo-logo.png" alt="MTN MoMo from MTN" className="h-10 w-10 object-contain" />
                           </div>
                           <p className="text-sm text-muted-foreground">Pay using MTN Mobile Money. Quick and secure mobile payments.</p>
                           {watchPaymentMethod === "MTN Mobile Money" && momoPhone && (
