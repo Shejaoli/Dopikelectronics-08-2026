@@ -24,6 +24,15 @@ export function serveStatic(app: Express) {
       immutable: false,
       etag: true,
       lastModified: true,
+      setHeaders: (res, filePath) => {
+        // Vite fingerprints bundled assets, so they can be cached until their
+        // content hash changes. Keep the HTML shell and named public files
+        // revalidating so deployments and product images update promptly.
+        const relativePath = path.relative(path.join(distPath, "assets"), filePath);
+        if (!relativePath.startsWith("..") && !path.isAbsolute(relativePath)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
     }),
   );
 

@@ -964,9 +964,9 @@ export const CircularEconomy = () => {
             key={activeVideo?.id ?? activeIdx}
             ref={mobileVideoRef}
             src={activeVideo?.url}
+            preload="none"
             muted={isMuted}
             playsInline
-            autoPlay
             loop={displayVideos.length === 1}
             onEnded={() => handleEnded(activeIdx)}
             className="absolute inset-0 w-full h-full object-cover"
@@ -1139,6 +1139,7 @@ export const CircularEconomy = () => {
                     <video
                       ref={el => { videoRefs.current[i] = el; }}
                       src={vid.url}
+                      preload="none"
                       muted={isMuted}
                       playsInline
                       loop={displayVideos.length === 1}

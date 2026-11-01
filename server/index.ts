@@ -11,7 +11,19 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 const httpServer = createServer(app);
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        scriptSrc: [
+          "'self'",
+          "https://www.googletagmanager.com",
+          ...(process.env.NODE_ENV !== "production" ? ["'unsafe-inline'"] : []),
+        ],
+      },
+    },
+  }),
+);
 
 const SessionStore = MemoryStore(session);
 
@@ -107,8 +119,7 @@ app.use((req, res, next) => {
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
-      reusePort: true,
+      host: process.env.HOST || "0.0.0.0",
     },
     () => {
       log(`serving on port ${port}`);
