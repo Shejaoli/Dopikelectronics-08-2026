@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { PROVINCES, DISTRICTS_BY_PROVINCE, KIGALI_SECTORS_BY_DISTRICT, isKigaliDistrict } from "@shared/rwanda-locations";
+import { DELIVERY_ADDRESS_STORAGE_KEY, readSavedDeliveryAddress, type DeliveryAddress } from "@/lib/delivery-address";
 
 interface CartItem {
   productId: number;
@@ -107,11 +107,18 @@ function CheckoutSingle({
 }) {
   const { toast } = useToast();
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [savedDeliveryAddress, setSavedDeliveryAddress] = useState<DeliveryAddress | null>(() => readSavedDeliveryAddress());
 
   const watchPaymentMethod = form.watch("paymentMethod");
   const watchLatitude = form.watch("latitude");
   const watchLongitude = form.watch("longitude");
-  const hasLocation = !!watchLatitude && !!watchLongitude;
+  const hasLocation = (!!watchLatitude && !!watchLongitude) || Boolean(savedDeliveryAddress?.district);
+
+  useEffect(() => {
+    const syncDeliveryAddress = () => setSavedDeliveryAddress(readSavedDeliveryAddress());
+    window.addEventListener("dopik-delivery-address-changed", syncDeliveryAddress);
+    return () => window.removeEventListener("dopik-delivery-address-changed", syncDeliveryAddress);
+  }, []);
 
   // Mobile Money: collect and validate the customer's own paying-from number
   const [momoPhone, setMomoPhone] = useState("");
@@ -185,6 +192,9 @@ function CheckoutSingle({
   const handleClearLocation = () => {
     form.setValue("latitude", "");
     form.setValue("longitude", "");
+    sessionStorage.removeItem(DELIVERY_ADDRESS_STORAGE_KEY);
+    setSavedDeliveryAddress(null);
+    window.dispatchEvent(new Event("dopik-delivery-address-changed"));
   };
 
   const orderMutation = useMutation({
@@ -201,6 +211,8 @@ function CheckoutSingle({
       localStorage.removeItem("cart");
       window.dispatchEvent(new Event("storage"));
       localStorage.removeItem("checkout_shipping");
+      sessionStorage.removeItem(DELIVERY_ADDRESS_STORAGE_KEY);
+      window.dispatchEvent(new Event("dopik-delivery-address-changed"));
       setLocation("/order-success");
     },
     onError: (error: Error) => {
@@ -218,15 +230,23 @@ function CheckoutSingle({
       return;
     }
 
+    const selectedAddress = savedDeliveryAddress || readSavedDeliveryAddress();
     const orderData = {
       customerName: data.fullName.trim(),
       customerPhone: data.phone,
       customerEmail: data.email,
-      deliveryLocation: hasLocation
+      deliveryLocation: selectedAddress
+        ? [selectedAddress.address, selectedAddress.landmark].filter(Boolean).join(" — ") || `${selectedAddress.district}, ${selectedAddress.province}`
+        : hasLocation
         ? "Live GPS location shared by customer"
         : "GPS location not shared; contact customer to confirm delivery address",
-      deliveryLatitude: data.latitude || null,
-      deliveryLongitude: data.longitude || null,
+      deliveryProvince: selectedAddress?.province || null,
+      deliveryDistrict: selectedAddress?.district || null,
+      deliverySector: selectedAddress?.sector || null,
+      deliveryCell: selectedAddress?.cell || null,
+      deliveryLandmark: selectedAddress?.landmark || null,
+      deliveryLatitude: selectedAddress?.latitude || data.latitude || null,
+      deliveryLongitude: selectedAddress?.longitude || data.longitude || null,
       orderType: "Delivery",
       paymentMethod: data.paymentMethod,
       paymentProvider: isMomoNetwork(data.paymentMethod) ? data.paymentMethod : null,
@@ -294,17 +314,23 @@ function CheckoutSingle({
         <div className="space-y-4">
           <h2 className="text-xl font-bold">Delivery location</h2>
           {hasLocation ? (
-            <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-              <span className="flex items-center gap-2 font-medium text-foreground">
-                <MapPin className="h-4 w-4 text-primary" /> Location shared
-              </span>
-              <button
-                type="button"
-                onClick={handleClearLocation}
-                className="text-xs font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground"
-              >
-                Clear
-              </button>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+              <div className="min-w-0">
+                <span className="flex items-center gap-2 font-medium text-foreground">
+                  <MapPin className="h-4 w-4 text-primary" /> {savedDeliveryAddress ? "Delivery address selected" : "Location shared"}
+                </span>
+                {savedDeliveryAddress && <p className="mt-1 pl-6 text-xs text-muted-foreground">{[savedDeliveryAddress.address, savedDeliveryAddress.landmark, savedDeliveryAddress.cell, savedDeliveryAddress.sector, savedDeliveryAddress.district, savedDeliveryAddress.province].filter(Boolean).join(", ")}</p>}
+              </div>
+              <div className="flex items-center gap-3">
+                {savedDeliveryAddress && <button type="button" onClick={() => window.dispatchEvent(new Event("dopik-open-delivery-location"))} className="text-xs font-semibold text-primary underline underline-offset-2">Change</button>}
+                <button
+                  type="button"
+                  onClick={handleClearLocation}
+                  className="text-xs font-semibold text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                >
+                  Clear
+                </button>
+              </div>
             </div>
           ) : (
             <Button

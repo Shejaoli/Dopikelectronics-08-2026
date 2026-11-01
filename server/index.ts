@@ -15,6 +15,9 @@ app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
+        // Allow the delivery dialog's OpenStreetMap preview while keeping all
+        // other embedded origins blocked by the default Helmet policy.
+        frameSrc: ["'self'", "https://www.openstreetmap.org"],
         scriptSrc: [
           "'self'",
           "https://www.googletagmanager.com",
@@ -86,7 +89,8 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      // Customer conversations may contain personal details; never log AI replies.
+      if (capturedJsonResponse && !path.startsWith("/api/ysota-ai/")) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 

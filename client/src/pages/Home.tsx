@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useState, useEffect, useRef, useCallback } from "react";
 function useTouchSwipe(onSwipeLeft: () => void, onSwipeRight: () => void) {
   const touchStartX = useRef<number | null>(null);
@@ -30,13 +30,6 @@ function useTouchSwipe(onSwipeLeft: () => void, onSwipeRight: () => void) {
 }
 import { useQuery } from "@tanstack/react-query";
 import { CouponCode } from "@shared/schema";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay, Pagination, Navigation } from "swiper/modules";
-
-// Import Swiper styles
-import "swiper/css";
-import "swiper/css/pagination";
-import "swiper/css/navigation";
 
 import { 
   ArrowRight, 
@@ -81,11 +74,6 @@ import {
 } from "@/components/ui/carousel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Import images
-import banner1 from "@assets/stock_images/high_quality_banner__3cb20b92.jpg";
-import banner2 from "@assets/stock_images/high_quality_banner__880fc6d2.jpg";
-import banner3 from "@assets/stock_images/high_quality_banner__b1407c03.jpg";
-
 // Category Images
 import smartphonesCat from "@assets/Phone_category_1768723350746.png";
 import laptopsCat from "@assets/Laptop_category_1768723909466.png";
@@ -96,124 +84,63 @@ import audioCat from "@assets/Audio_category_1768748035466.png";
 import accessoriesCat from "@assets/Accessoirs_category_1768748494801.png";
 import electronicsCat from "@assets/Electronics_category_1768749381858.png";
 
-// Custom Assets for First Slide
-import controllerImg from "@assets/32497_1_1768720576552.png";
-import phoneImg from "@assets/Apple-iPhone-15-Pro-vs-Samsung-Galaxy-S23-Ultra-cameras_1768720576555.png";
-import macbookImg from "@assets/apple-macbook-air-15in-m4_1768720576555.png";
-
 const HomeHero = () => {
+  const [activeSlide, setActiveSlide] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
   const slides = [
     {
-      bgColor: "bg-[#D1F3F5]",
-      textColor: "text-[#012E40]",
-      isFirst: true,
-      title: "Certified Electronic Shop",
-      subtitle: "in Kigali, Rwanda",
-      buttonText: "Shop Deals",
-      buttonHref: "/deals",
-      image: null
+      src: "/images/hero-bestseller.jpeg",
+      alt: "Upgrade to a bestseller. Shop the phones everyone is talking about at Dopik Electronics in Kigali.",
     },
     {
-      bgColor: "bg-gradient-to-br from-[#010033] to-[#020066]",
-      textColor: "text-white",
-      isFirst: false,
-      title: "Latest Smartphones",
-      subtitle: "Experience the future with the newest iPhone and Samsung models. All devices are certified, come with a 12-month warranty, and include free delivery in Kigali.",
-      buttonText: "View Phones",
-      buttonHref: "/products?category=smartphones",
-      image: phoneImg
+      src: "/images/hero-bestseller-slide-2.webp",
+      alt: "Upgrade to a bestseller. Shop now at the certified electronics shop in Kigali.",
     },
-    {
-      bgColor: "bg-gradient-to-br from-[#010033] to-[#020066]",
-      textColor: "text-white",
-      isFirst: false,
-      title: "Premium Laptops",
-      subtitle: "Boost your productivity with high-performance MacBooks and Dell XPS laptops. Professionally tested, cleaned, and backed by our local support team.",
-      buttonText: "Browse Laptops",
-      buttonHref: "/products?category=laptops",
-      image: macbookImg
-    }
   ];
 
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const interval = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % slides.length);
+    }, 7000);
+    return () => window.clearInterval(interval);
+  }, [prefersReducedMotion, slides.length]);
+
   return (
-    <section className="relative w-full overflow-hidden">
-      <Swiper
-        modules={[Autoplay, Pagination, Navigation]}
-        spaceBetween={0}
-        slidesPerView={1}
-        autoplay={{ delay: 5000, disableOnInteraction: false }}
-        pagination={{ clickable: true }}
-        navigation={true}
-        className="h-[180px] sm:h-[220px] lg:h-[270px] xl:h-[330px]"
-      >
-        {slides.map((slide, index) => (
-          <SwiperSlide key={index}>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8 }}
-              className={`relative w-full h-full flex items-center justify-center overflow-hidden ${slide.bgColor} ${slide.textColor}`}
-            >
-              {slide.isFirst ? (
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full h-full relative flex items-center justify-center">
-                  {/* Macbook - Left Side */}
-                  <div className="absolute left-[-22%] lg:left-[-12%] bottom-[-5%] lg:bottom-[-2%] w-[45%] lg:w-[32%] z-10 rotate-[-5deg]">
-                    <img src={macbookImg} alt="Macbook" className="w-full h-auto object-contain" />
-                  </div>
-
-                  {/* Phone - Bottom Center-ish but slightly left of center */}
-                  <div className="absolute left-[25%] lg:left-[30%] bottom-[-5%] w-[30%] lg:w-[25%] z-10">
-                    <img src={phoneImg} alt="Phones" className="w-full h-auto object-contain" />
-                  </div>
-                  
-                  <div className="relative z-20 space-y-3 text-center px-4 w-full max-w-2xl mx-auto">
-                    <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-                      {slide.title}
-                    </h1>
-                    <p className="text-sm sm:text-lg font-medium opacity-90 line-clamp-2 sm:line-clamp-none">
-                      {slide.subtitle}
-                    </p>
-                    
-                    <Link href={slide.buttonHref}>
-                      <Button size="lg" className="rounded-full px-10 h-12 text-base font-bold mt-2 bg-[#0066FF] hover:bg-[#0055DD] text-white border-none shadow-lg">
-                        {slide.buttonText}
-                      </Button>
-                    </Link>
-                  </div>
-
-                  {/* Controller - Far Right Bottom/Side */}
-                  <div className="absolute right-[-22%] lg:right-[-12%] top-[10%] lg:top-[5%] w-[45%] lg:w-[35%] z-10 rotate-[15deg]">
-                    <img src={controllerImg} alt="Controller" className="w-full h-auto object-contain" />
-                  </div>
-                </div>
-              ) : (
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-center w-full h-full text-[#010033]">
-                  <div className="space-y-4">
-                    <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl text-[#9cbbe5]">
-                      {slide.title}
-                    </h1>
-                    <p className="text-base text-muted-foreground/80 max-w-lg hidden sm:block text-[#b0d2ff]">
-                      {slide.subtitle}
-                    </p>
-                    <Link href={slide.buttonHref}>
-                      <Button size="sm" className="rounded-full px-8 h-10 text-base font-bold">
-                        {slide.buttonText}
-                      </Button>
-                    </Link>
-                  </div>
-                  <div className="hidden lg:flex justify-end relative">
-                    <img 
-                      src={slide.image} 
-                      alt={slide.title} 
-                      className="max-h-[220px] lg:max-h-[280px] xl:max-h-[340px] object-contain drop-shadow-2xl" 
-                    />
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </SwiperSlide>
-        ))}
-      </Swiper>
+    <section aria-label="Featured electronics promotion" className="w-full px-3 py-2 sm:px-5 sm:py-3 lg:px-6">
+      <div className={`relative mx-auto w-full max-w-[1200px] overflow-hidden rounded-2xl bg-white shadow-[0_6px_24px_rgba(18,39,71,0.12)] ring-1 ring-black/5 ${activeSlide === 0 ? "aspect-[16/9] max-h-[360px] sm:aspect-[3/1] lg:aspect-[16/5]" : "aspect-[3/1] sm:aspect-[3/1] lg:aspect-[16/5]"}`}>
+        <Link href="/shop?category=Smartphones" aria-label="Shop bestselling smartphones" className="absolute inset-0 block focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-inset">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.img
+              key={slides[activeSlide].src}
+              src={slides[activeSlide].src}
+              alt={slides[activeSlide].alt}
+              width={activeSlide === 0 ? 1280 : 1800}
+              height={activeSlide === 0 ? 720 : 600}
+              fetchPriority={activeSlide === 0 ? "high" : "auto"}
+              loading={activeSlide === 0 ? "eager" : "lazy"}
+              decoding="async"
+              initial={prefersReducedMotion ? false : { opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={prefersReducedMotion ? undefined : { opacity: 0, x: -24 }}
+              transition={{ duration: 0.55, ease: "easeInOut" }}
+              className={`block h-full w-full ${activeSlide === 0 ? "object-cover object-center sm:object-[center_48%]" : "bg-white object-cover object-center"}`}
+            />
+          </AnimatePresence>
+        </Link>
+        <div className="absolute bottom-2 right-3 z-10 flex items-center gap-1.5 rounded-full bg-white/85 p-1 shadow-sm backdrop-blur-sm" role="group" aria-label="Choose promotion slide">
+          {slides.map((slide, index) => (
+            <button
+              key={slide.src}
+              type="button"
+              onClick={() => setActiveSlide(index)}
+              aria-label={`Show promotion ${index + 1}`}
+              aria-pressed={activeSlide === index}
+              className={`h-1.5 rounded-full transition-all ${activeSlide === index ? "w-5 bg-primary" : "w-1.5 bg-slate-400 hover:bg-primary/70"}`}
+            />
+          ))}
+        </div>
+      </div>
     </section>
   );
 };
@@ -233,35 +160,17 @@ const TrustBar = () => {
       transition={{ delay: 0.2 }}
       className="bg-white dark:bg-slate-900 border-b relative z-30"
     >
-      {/* Mobile: scrolling ticker at 80% scale */}
-      <div className="md:hidden overflow-hidden py-2">
-        <div className="flex animate-marquee" style={{ width: "max-content" }}>
-          {[...trustItems, ...trustItems].map((item, i) => (
-            <div key={i} className="flex items-center gap-1.5 mx-5 shrink-0" style={{ transform: "scale(0.8)", transformOrigin: "left center" }}>
-              <div className={`flex h-6 w-6 items-center justify-center rounded-full ${item.color}`}>
-                {item.icon}
-              </div>
-              <div className="flex flex-col whitespace-nowrap">
-                <span className="text-[11px] font-bold leading-none mb-0.5">{item.label}</span>
-                <span className="text-[9px] text-muted-foreground/70">{item.sub}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Desktop: 4-column grid */}
-      <div className="hidden md:block py-3">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-4 gap-4 items-center justify-items-center">
-            {trustItems.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 group">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${item.color} transition-transform group-hover:scale-110`}>
+      <div className="overflow-hidden py-1.5" aria-label="Store benefits">
+        <div className="mx-auto max-w-[1200px] overflow-hidden">
+          <div className="flex w-max animate-marquee items-center hover:[animation-play-state:paused] motion-reduce:animate-none" style={{ width: "max-content" }}>
+            {[...trustItems, ...trustItems].map((item, i) => (
+              <div key={`${item.label}-${i}`} aria-hidden={i >= trustItems.length} className="flex shrink-0 items-center gap-1.5 px-5 sm:px-8">
+                <div className={`flex h-6 w-6 items-center justify-center rounded-full ${item.color}`}>
                   {item.icon}
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold leading-none mb-1">{item.label}</span>
-                  <span className="text-[10px] text-muted-foreground/70">{item.sub}</span>
+                <div className="flex flex-col whitespace-nowrap">
+                  <span className="text-[10px] font-bold leading-tight sm:text-[11px]">{item.label}</span>
+                  <span className="text-[8px] leading-tight text-muted-foreground/70 sm:text-[9px]">{item.sub}</span>
                 </div>
               </div>
             ))}
@@ -358,6 +267,8 @@ const PopularCategories = () => {
                     <img 
                       src={cat.image} 
                       alt={cat.name} 
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-contain z-10 drop-shadow-md group-hover:drop-shadow-xl" 
                     />
                   ) : (
@@ -687,7 +598,7 @@ const MaximizeSavings = () => {
               >
                 {item.badge}
               </span>
-              <img src={item.img} alt={item.name} className="h-full w-full object-contain" />
+              <img src={item.img} alt={item.name} loading="lazy" decoding="async" className="h-full w-full object-contain" />
             </div>
             <div className="px-1.5 pt-1 pb-1.5 bg-[#f5f5f5] dark:bg-gray-800">
               <p className="text-[10px] font-semibold text-gray-800 dark:text-gray-200 leading-tight line-clamp-2">{item.name}</p>
@@ -947,14 +858,13 @@ export const CircularEconomy = () => {
     <section ref={sectionRef} className="w-full py-4 px-3 md:px-6 lg:px-8" data-testid="promo-videos-section">
       <div
         ref={videoCarouselRef}
-        className="relative w-full rounded-3xl overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #070d1f 0%, #0a1020 50%, #050a18 100%)" }}
+        className="relative w-full overflow-hidden rounded-3xl bg-white text-slate-900 shadow-sm ring-1 ring-slate-200 dark:bg-gradient-to-br dark:from-[#070d1f] dark:via-[#0a1020] dark:to-[#050a18] dark:text-white dark:ring-white/10"
       >
       {/* Ambient glows */}
-      <div className="absolute top-0 left-1/3 w-80 h-80 bg-[#0066FF]/15 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-[#F5CE33]/8 rounded-full blur-[80px] pointer-events-none" />
+      <div className="absolute top-0 left-1/3 w-80 h-80 rounded-full bg-primary/5 blur-[100px] pointer-events-none dark:bg-[#0066FF]/15" />
+      <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-yellow-400/10 blur-[80px] pointer-events-none dark:bg-[#F5CE33]/8" />
       {/* Dot grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(15,23,42,0.035)_1px,transparent_1px)] bg-[size:28px_28px] pointer-events-none dark:bg-[radial-gradient(circle,rgba(255,255,255,0.025)_1px,transparent_1px)]" />
 
       {/* ── MOBILE layout: video fills top of card, info below ── */}
       <div className="relative z-10 flex flex-col md:hidden">
@@ -1008,16 +918,16 @@ export const CircularEconomy = () => {
         <div className="px-5 pt-5 pb-6 text-center">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-[#0066FF]/30 bg-[#0066FF]/10 px-3 py-1 mb-3">
             <span className="h-1.5 w-1.5 rounded-full bg-[#F5CE33] animate-pulse" />
-            <span className="text-[10px] font-black text-[#F5CE33] uppercase tracking-[0.2em]">Promo Spotlight</span>
+            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] dark:text-[#F5CE33]">Promo Spotlight</span>
           </div>
-          <h2 className="text-2xl font-black text-white leading-tight tracking-tight mb-1">Drop-Worthy</h2>
-          <div className="inline-block bg-white/10 border border-white/15 text-white text-2xl font-black px-4 py-1 rounded-xl mb-3 tracking-tight">
+          <h2 className="mb-1 text-2xl font-black leading-tight tracking-tight text-slate-900 dark:text-white">Drop-Worthy</h2>
+          <div className="mb-3 inline-block rounded-xl border border-primary/15 bg-primary/5 px-4 py-1 text-2xl font-black tracking-tight text-slate-900 dark:border-white/15 dark:bg-white/10 dark:text-white">
             Deals & Promos
           </div>
           {activeVideo?.title ? (
-            <p className="text-sm font-bold text-white/80 mb-4 line-clamp-2">{activeVideo.title}</p>
+            <p className="mb-4 line-clamp-2 text-sm font-bold text-slate-700 dark:text-white/80">{activeVideo.title}</p>
           ) : (
-            <p className="text-sm text-white/50 mb-4">Exclusive offers, flash sales, and new drops every week.</p>
+            <p className="mb-4 text-sm text-slate-500 dark:text-white/50">Exclusive offers, flash sales, and new drops every week.</p>
           )}
           {displayVideos.length > 1 && (
             <div className="flex items-center justify-center gap-2 mb-4">
@@ -1026,7 +936,8 @@ export const CircularEconomy = () => {
                   key={i}
                   onClick={() => switchTo(i)}
                   data-testid={`promo-dot-${i}`}
-                  className={`transition-all duration-300 rounded-full ${i === activeIdx ? "w-6 h-2 bg-[#F5CE33]" : "w-2 h-2 bg-white/20"}`}
+                  aria-label={`Show video ${i + 1}`}
+                  className={`rounded-full transition-all duration-300 ${i === activeIdx ? "h-2 w-6 bg-primary dark:bg-[#F5CE33]" : "h-2 w-2 bg-slate-300 dark:bg-white/20"}`}
                 />
               ))}
             </div>
@@ -1040,9 +951,9 @@ export const CircularEconomy = () => {
             <button
               data-testid="promo-mute-btn"
               onClick={() => setIsMuted(!isMuted)}
-              className="w-full flex items-center justify-center gap-2 bg-transparent border border-white/15 text-white font-bold text-sm px-6 py-3.5 rounded-2xl transition-all active:scale-95"
+              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-bold text-slate-800 transition-all active:scale-95 dark:border-white/15 dark:bg-white/5 dark:text-white"
             >
-              {isMuted ? <VolumeX className="h-4 w-4 text-white/40" /> : <Volume2 className="h-4 w-4 text-[#F5CE33]" />}
+              {isMuted ? <VolumeX className="h-4 w-4 text-slate-400 dark:text-white/40" /> : <Volume2 className="h-4 w-4 text-primary dark:text-[#F5CE33]" />}
               {isMuted ? "Unmute" : "Mute"}
             </button>
           </div>
@@ -1058,16 +969,16 @@ export const CircularEconomy = () => {
               <span className="absolute inline-flex h-full w-full rounded-full bg-[#F5CE33] opacity-75 animate-ping" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-[#F5CE33]" />
             </span>
-            <span className="text-[11px] font-black text-[#F5CE33] uppercase tracking-[0.2em]">Promotion Spotlight</span>
+            <span className="text-[11px] font-black text-primary uppercase tracking-[0.2em] dark:text-[#F5CE33]">Promotion Spotlight</span>
           </div>
-          <h2 className="text-4xl lg:text-5xl font-black text-white leading-tight tracking-tight mb-2">Drop-Worthy</h2>
-          <div className="inline-block bg-white/10 border border-white/15 text-white text-4xl lg:text-5xl font-black px-4 py-1 rounded-xl mb-5 tracking-tight">
+          <h2 className="mb-2 text-4xl font-black leading-tight tracking-tight text-slate-900 dark:text-white lg:text-5xl">Drop-Worthy</h2>
+          <div className="mb-5 inline-block rounded-xl border border-primary/15 bg-primary/5 px-4 py-1 text-4xl font-black tracking-tight text-slate-900 dark:border-white/15 dark:bg-white/10 dark:text-white lg:text-5xl">
             Deals & Promos
           </div>
           {activeVideo?.title ? (
-            <p className="text-white/70 text-sm lg:text-base leading-relaxed mb-5 max-w-sm">{activeVideo.title}</p>
+            <p className="mb-5 max-w-sm text-sm leading-relaxed text-slate-700 dark:text-white/70 lg:text-base">{activeVideo.title}</p>
           ) : (
-            <p className="text-white/50 text-sm lg:text-base leading-relaxed mb-5 max-w-sm">Exclusive offers, flash sales, and new drops every week.</p>
+            <p className="mb-5 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-white/50 lg:text-base">Exclusive offers, flash sales, and new drops every week.</p>
           )}
           <div className="flex flex-wrap gap-2 mb-5">
             {[
@@ -1075,7 +986,7 @@ export const CircularEconomy = () => {
               { icon: Tag, label: "Best Prices", color: "text-[#0066FF]" },
               { icon: Sparkles, label: "New Arrivals", color: "text-[#F5CE33]" },
             ].map(({ icon: Icon, label, color }) => (
-              <div key={label} className="flex items-center gap-1.5 rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-bold text-white/70">
+              <div key={label} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-white/70">
                 <Icon className={`h-3 w-3 ${color}`} /> {label}
               </div>
             ))}
@@ -1087,10 +998,11 @@ export const CircularEconomy = () => {
                   key={i}
                   onClick={() => switchTo(i)}
                   data-testid={`promo-dot-${i}`}
-                  className={`transition-all duration-300 rounded-full ${i === activeIdx ? "w-8 h-2 bg-[#F5CE33]" : "w-2 h-2 bg-white/20 hover:bg-white/40"}`}
+                  aria-label={`Show video ${i + 1}`}
+                  className={`rounded-full transition-all duration-300 ${i === activeIdx ? "h-2 w-8 bg-primary dark:bg-[#F5CE33]" : "h-2 w-2 bg-slate-300 hover:bg-slate-400 dark:bg-white/20 dark:hover:bg-white/40"}`}
                 />
               ))}
-              <span className="ml-2 text-[10px] font-bold text-white/30">{activeIdx + 1} / {displayVideos.length}</span>
+              <span className="ml-2 text-[10px] font-bold text-slate-500 dark:text-white/50">{activeIdx + 1} / {displayVideos.length}</span>
             </div>
           )}
           <div className="flex gap-3">
@@ -1102,9 +1014,9 @@ export const CircularEconomy = () => {
             <button
               data-testid="promo-mute-btn"
               onClick={() => setIsMuted(!isMuted)}
-              className="flex items-center gap-2 border border-white/15 bg-white/5 hover:bg-white/10 text-white font-bold text-sm px-5 py-3.5 rounded-2xl transition-all hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3.5 text-sm font-bold text-slate-800 transition-all hover:scale-105 hover:bg-slate-50 active:scale-95 dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
             >
-              {isMuted ? <VolumeX className="h-4 w-4 text-white/50" /> : <Volume2 className="h-4 w-4 text-[#F5CE33]" />}
+              {isMuted ? <VolumeX className="h-4 w-4 text-slate-400 dark:text-white/50" /> : <Volume2 className="h-4 w-4 text-primary dark:text-[#F5CE33]" />}
               {isMuted ? "Unmute" : "Mute"}
             </button>
           </div>
@@ -1115,9 +1027,9 @@ export const CircularEconomy = () => {
           {displayVideos.length > 1 && (
             <button
               onClick={() => switchTo((activeIdx - 1 + displayVideos.length) % displayVideos.length)}
-              className="absolute -left-10 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/10 border border-white/20 p-2 backdrop-blur-sm hover:bg-white/20 transition-all"
+              className="absolute -left-10 top-1/2 -translate-y-1/2 z-10 rounded-full border border-slate-300 bg-white p-2 text-slate-700 backdrop-blur-sm transition-all hover:bg-slate-100 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
             >
-              <ChevronLeft className="h-5 w-5 text-white" />
+              <ChevronLeft className="h-5 w-5" />
             </button>
           )}
           <div className="flex gap-3 items-center">
@@ -1135,7 +1047,7 @@ export const CircularEconomy = () => {
                   {isActive && (
                     <div className={`absolute -inset-2 bg-gradient-to-b ${glow} rounded-[28px] blur-xl opacity-40 pointer-events-none`} />
                   )}
-                  <div className="relative rounded-[22px] overflow-hidden border border-white/10 shadow-2xl aspect-[9/16] bg-black">
+                  <div className="relative aspect-[9/16] overflow-hidden rounded-[22px] border border-slate-200 bg-black shadow-2xl dark:border-white/10">
                     <video
                       ref={el => { videoRefs.current[i] = el; }}
                       src={vid.url}
@@ -1181,9 +1093,9 @@ export const CircularEconomy = () => {
           {displayVideos.length > 1 && (
             <button
               onClick={() => switchTo((activeIdx + 1) % displayVideos.length)}
-              className="absolute -right-10 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/10 border border-white/20 p-2 backdrop-blur-sm hover:bg-white/20 transition-all"
+              className="absolute -right-10 top-1/2 -translate-y-1/2 z-10 rounded-full border border-slate-300 bg-white p-2 text-slate-700 backdrop-blur-sm transition-all hover:bg-slate-100 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
             >
-              <ChevronRight className="h-5 w-5 text-white" />
+              <ChevronRight className="h-5 w-5" />
             </button>
           )}
         </div>
@@ -1265,12 +1177,6 @@ const FeaturedSlider = () => {
 
   return (
     <section className="w-full py-4 px-3 md:px-6 lg:px-8">
-      {/* Preload all slide images to prevent lag when switching */}
-      <div className="hidden" aria-hidden="true">
-        {slides.map((s: any, i: number) => i !== current && s.imageUrl ? (
-          <img key={i} src={s.imageUrl} alt="" />
-        ) : null)}
-      </div>
       <div
         className="relative w-full rounded-3xl overflow-hidden"
         style={{ background: "linear-gradient(135deg, #F5CE33 0%, #E8B800 40%, #F5CE33 70%, #FFD700 100%)" }}
@@ -1294,6 +1200,8 @@ const FeaturedSlider = () => {
               <img
                 src={slide.imageUrl}
                 alt={`${slide.titleLine1} ${slide.titleLine2}`}
+                loading="lazy"
+                decoding="async"
                 className="relative z-10 h-44 w-full object-contain"
                 style={{ filter: "drop-shadow(0 16px 32px rgba(0,0,0,0.22))" }}
               />
@@ -1387,6 +1295,8 @@ const FeaturedSlider = () => {
               <img
                 src={slide.imageUrl}
                 alt={`${slide.titleLine1} ${slide.titleLine2}`}
+                loading="lazy"
+                decoding="async"
                 className="h-full w-full object-contain"
                 style={{ filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.18))" }}
               />

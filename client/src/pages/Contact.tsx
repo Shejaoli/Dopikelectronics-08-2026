@@ -84,12 +84,17 @@ export default function Contact() {
                 <div className="grid grid-cols-2 gap-4 text-muted-foreground">
                   <div>
                     <p className="text-foreground font-medium">Monday - Friday</p>
-                    <p>8:00 AM - 8:00 PM</p>
+                    <p>8:00 AM - 9:00 PM</p>
                   </div>
                   <div>
                     <p className="text-foreground font-medium">Saturday</p>
-                    <p>9:00 AM - 6:00 PM</p>
+                    <p>9:00 AM - 8:00 PM</p>
                   </div>
+                  <div>
+                    <p className="text-foreground font-medium">Sunday</p>
+                    <p>Closed</p>
+                  </div>
+                  <p className="col-span-2 border-t border-border pt-3 text-sm">Times are in CAT (GMT+2)</p>
                 </div>
               </div>
             </div>

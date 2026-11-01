@@ -1,8 +1,17 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import { loadEnvFile } from "node:process";
 import * as schema from "@shared/schema";
 
 const { Pool } = pg;
+
+// Load local secrets for Windows and other development shells that do not
+// automatically read .env. Production environment variables remain supported.
+try {
+  loadEnvFile();
+} catch (error) {
+  if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+}
 
 if (!process.env.DATABASE_URL) {
   throw new Error(

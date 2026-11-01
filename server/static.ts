@@ -10,6 +10,26 @@ export function serveStatic(app: Express) {
     );
   }
 
+  // Serve build-time Brotli variants for fingerprinted JavaScript and CSS.
+  // These files are byte-for-byte tied to the hashed asset URL, so they remain
+  // safe to cache for a year while cutting the transfer size substantially.
+  app.use("/assets", (req, res, next) => {
+    if (!/(^|,)\s*br(?:\s*;|,|$)/i.test(req.get("accept-encoding") || "")) {
+      return next();
+    }
+    const assetName = path.basename(req.path);
+    if (!/\.(?:css|js)$/.test(assetName)) return next();
+
+    const compressedPath = path.join(distPath, "assets", `${assetName}.br`);
+    if (!fs.existsSync(compressedPath)) return next();
+
+    res.setHeader("Content-Type", assetName.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
+    res.setHeader("Content-Encoding", "br");
+    res.setHeader("Vary", "Accept-Encoding");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.sendFile(compressedPath);
+  });
+
   // Serve uploads with NO long-term caching
   app.use("/uploads", express.static(path.join(distPath, "uploads"), {
     maxAge: 0,

@@ -2,15 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 
 export function useProducts(filters?: { category?: string; featured?: string; search?: string }) {
-  const queryKey = [api.products.list.path, filters];
+  // Share one product request across home sections that only differ by
+  // category/featured status, then derive those views in memory. Search stays
+  // server-filtered so large result sets are not sent to the browser.
+  const filterInBrowser = !filters?.search;
+  const queryKey = filterInBrowser
+    ? [api.products.list.path]
+    : [api.products.list.path, filters];
 
   return useQuery({
     queryKey,
     queryFn: async () => {
+      if (filterInBrowser) {
+        const res = await fetch(api.products.list.path);
+        if (!res.ok) throw new Error("Failed to fetch products");
+        return api.products.list.responses[200].parse(await res.json());
+      }
+
       // Create search params from filters
       const params = new URLSearchParams();
-      if (filters?.category) params.append("category", filters.category);
-      if (filters?.featured) params.append("featured", filters.featured);
       if (filters?.search) params.append("search", filters.search);
 
       const url = `${api.products.list.path}?${params.toString()}`;
@@ -20,6 +30,14 @@ export function useProducts(filters?: { category?: string; featured?: string; se
 
       // Parse with Zod schema from routes
       return api.products.list.responses[200].parse(await res.json());
+    },
+    select: (products) => {
+      if (!filterInBrowser) return products;
+      return products.filter((product) => {
+        if (filters?.category && product.category !== filters.category) return false;
+        if (filters?.featured === "true" && !product.isFeatured) return false;
+        return true;
+      });
     },
   });
 }

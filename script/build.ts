@@ -1,6 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, readdir, writeFile } from "fs/promises";
+import { brotliCompressSync, constants as zlibConstants } from "zlib";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -37,6 +38,18 @@ async function buildAll() {
 
   console.log("building client...");
   await viteBuild();
+
+  // Precompress fingerprinted CSS/JS so production can serve Brotli to browsers.
+  const assetDir = "dist/public/assets";
+  for (const entry of await readdir(assetDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !/\.(css|js)$/.test(entry.name)) continue;
+    const assetPath = `${assetDir}/${entry.name}`;
+    const contents = await readFile(assetPath);
+    const compressed = brotliCompressSync(contents, {
+      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 5 },
+    });
+    await writeFile(`${assetPath}.br`, compressed);
+  }
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));

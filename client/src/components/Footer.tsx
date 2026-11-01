@@ -100,11 +100,11 @@ export function Footer() {
             <div className="rounded-2xl bg-accent/30 p-5 space-y-3">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground font-medium">Mon - Fri:</span>
-                <span className="text-foreground font-bold">8:00 AM - 8:00 PM</span>
+                <span className="text-foreground font-bold">8:00 AM - 9:00 PM</span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground font-medium">Saturday:</span>
-                <span className="text-foreground font-bold">9:00 AM - 6:00 PM</span>
+                <span className="text-foreground font-bold">9:00 AM - 8:00 PM</span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-muted-foreground font-medium">Sunday:</span>
@@ -118,10 +118,10 @@ export function Footer() {
         </div>
 
         <div className="mt-20 border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[11px] text-muted-foreground/50 font-medium">
-          <p>&copy; {new Date().getFullYear()} DOPIK ELECTRONICS. All rights reserved. &mdash; Powered by <span className="font-semibold">YSOTA LTD</span></p>
+          <p>&copy; 2026 DOPIK ELECTRONICS. All rights reserved. Powered by <a href="http://ysota.cloud/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-primary transition-colors">YSOTA Cloud</a></p>
           <div className="flex gap-6">
             <span className="hover:text-primary cursor-default">Privacy Policy</span>
-            <span className="hover:text-primary cursor-default">Terms of Service</span>
+            <Link href="/terms" className="transition-colors hover:text-primary">Terms of Service</Link>
             <span className="hover:text-primary cursor-default tracking-widest uppercase">Shevio</span>
           </div>
         </div>

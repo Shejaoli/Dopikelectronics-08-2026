@@ -155,7 +155,8 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
 <img
     src={product.imageUrl || '/placeholder.png'}
     alt={product.name}
-    loading='eager'
+    loading='lazy'
+    decoding='async'
     width={400}
     height={400}
     className='h-full w-full object-contain transition-transform duration-500 group-hover:scale-105 p-2'

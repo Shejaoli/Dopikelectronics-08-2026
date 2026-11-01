@@ -255,7 +255,7 @@ export default function ProductDetails() {
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
       <Navbar />
-      <div className="hidden md:block"><WhatsAppFloat /></div>
+      <WhatsAppFloat />
 
       {/* ===== DESKTOP STICKY ADD TO CART BAR ===== */}
       <AnimatePresence>

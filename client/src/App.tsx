@@ -33,6 +33,7 @@ const OrderLookup          = lazy(() => import("@/pages/OrderLookup"));
 const About                = lazy(() => import("@/pages/About"));
 const Contact              = lazy(() => import("@/pages/Contact"));
 const Blog                 = lazy(() => import("@/pages/Blog"));
+const Terms                = lazy(() => import("@/pages/Terms"));
 const AdminLogin           = lazy(() => import("@/pages/AdminLogin"));
 const AdminDashboard       = lazy(() => import("@/pages/AdminDashboard"));
 const CustomerLogin        = lazy(() => import("@/pages/CustomerLogin"));
@@ -177,6 +178,7 @@ function Router() {
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />
           <Route path="/blog" component={Blog} />
+          <Route path="/terms" component={Terms} />
           <Route path="/login" component={CustomerLogin} />
           <Route path="/register" component={CustomerRegister} />
           <Route path="/xdopik-portal" component={AdminLogin} />
