@@ -145,6 +145,68 @@ const HomeHero = () => {
   );
 };
 
+const AirPodsPromotions = () => {
+  const promotions = [
+    {
+      title: "AirPods Max",
+      description: "Immersive sound, exceptional comfort, and iconic design.",
+      image: "/images/airpods-max-promo.webp",
+      href: "/shop?search=AirPods%20Max",
+    },
+    {
+      title: "AirPods Series",
+      description: "Explore AirPods with premium sound and seamless connection.",
+      image: "/images/airpods-series-promo.webp",
+      href: "/shop?search=AirPods",
+    },
+  ];
+
+  return (
+    <section aria-labelledby="airpods-promotions-title" className="px-3 py-5 sm:px-5 sm:py-8 lg:px-6">
+      <div className="mx-auto max-w-[1200px]">
+        <div className="mb-3 flex items-end justify-between gap-3 sm:mb-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Featured audio</p>
+            <h2 id="airpods-promotions-title" className="mt-1 text-xl font-bold sm:text-2xl">Discover AirPods</h2>
+          </div>
+          <Link href="/shop?category=Audio" className="shrink-0 text-sm font-semibold text-primary hover:underline">
+            Shop all audio <ArrowRight className="ml-1 inline h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
+          {promotions.map((promotion) => (
+            <Link
+              key={promotion.title}
+              href={promotion.href}
+              aria-label={`Shop ${promotion.title}`}
+              className="group overflow-hidden rounded-2xl bg-card shadow-[0_5px_22px_rgba(18,39,71,0.10)] ring-1 ring-black/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(18,39,71,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <img
+                src={promotion.image}
+                alt={`${promotion.title} promotion from Dopik Electronics`}
+                width="900"
+                height="900"
+                loading="lazy"
+                decoding="async"
+                className="aspect-square w-full object-cover"
+              />
+              <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
+                <div className="min-w-0">
+                  <h3 className="font-bold">{promotion.title}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{promotion.description}</p>
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition group-hover:bg-primary/90 sm:text-sm">
+                  Shop now <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const trustItems = [
   { icon: <ShieldCheck className="w-3.5 h-3.5" />, label: "12-Month Warranty", sub: "Genuine protection", color: "bg-primary/10 text-primary" },
   { icon: <Check className="w-3.5 h-3.5" />, label: "Quality Checked", sub: "Rigorously tested", color: "bg-primary/10 text-primary" },
@@ -1483,6 +1545,7 @@ export default function Home() {
 
         <HomeHero />
         <TrustBar />
+        <AirPodsPromotions />
         <HomeSectionsDisplay />
         <TopDeals />
         <MaximizeSavings />
