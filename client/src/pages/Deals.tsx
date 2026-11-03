@@ -180,6 +180,21 @@ export default function Deals() {
       <WhatsAppFloat />
 
       <main>
+        <section aria-label="Deals and shopping information" className="overflow-hidden bg-red-600 text-white">
+          <div className="flex w-max animate-marquee motion-reduce:animate-none hover:[animation-play-state:paused]">
+            {[0, 1].map((copy) => (
+              <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center gap-6 px-4 py-2 text-xs font-extrabold sm:gap-10 sm:px-6 sm:py-2.5 sm:text-sm">
+                <span className="whitespace-nowrap">1-Year Warranty Guarantee</span>
+                <span aria-hidden="true" className="text-white/80">✦</span>
+                <span className="whitespace-nowrap">{topDiscount > 0 ? `Up to ${topDiscount}% off selected deals` : "Great prices on selected electronics"}</span>
+                <span aria-hidden="true" className="text-white/80">✦</span>
+                <a href="#all-deals-heading" className="whitespace-nowrap underline decoration-white/50 underline-offset-2 hover:text-white/80">Don’t miss out — shop the deals</a>
+                <span aria-hidden="true" className="text-white/80">✦</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="relative overflow-hidden bg-gradient-to-br from-[#071a37] via-[#0c3470] to-[#075bea] text-white">
           <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-36 h-96 w-96 rounded-full bg-blue-300/15 blur-3xl" />
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-48 left-1/4 h-80 w-80 rounded-full bg-yellow-300/10 blur-3xl" />
