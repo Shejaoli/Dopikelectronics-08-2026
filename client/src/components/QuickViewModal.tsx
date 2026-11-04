@@ -8,6 +8,7 @@ import { SiWhatsapp } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCompare } from "@/contexts/CompareContext";
+import { getProductPricing } from "@shared/product-pricing";
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -22,9 +23,7 @@ function QuickViewContent({ product, onClose }: { product: Product; onClose: () 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("en-RW", { style: "currency", currency: "RWF" }).format(price);
 
-  const discount = product.hotDealDiscount ?? 0;
-  const hasDiscount = product.isHotDeal && discount > 0;
-  const dealPrice = hasDiscount ? Math.round(product.price * (1 - discount / 100)) : product.price;
+  const { discount, hasDiscount, salePrice: dealPrice } = getProductPricing(product);
 
   const images = [product.imageUrl, ...(product.additionalImages || [])].filter(Boolean);
   const specs = (product.specs as Record<string, string>) || {};

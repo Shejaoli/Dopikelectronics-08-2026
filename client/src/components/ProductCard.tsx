@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { QuickViewModal } from "./QuickViewModal";
 import { useCompare } from "@/contexts/CompareContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { getProductPricing } from "@shared/product-pricing";
 
 interface ProductCardProps {
   product: Product;
@@ -37,9 +38,7 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
     return new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(price);
   };
 
-  const discount = product.hotDealDiscount ?? 0;
-  const hasDiscount = product.isHotDeal && discount > 0;
-  const dealPrice = hasDiscount ? Math.round(product.price * (1 - discount / 100)) : product.price;
+  const { discount, hasDiscount, salePrice: dealPrice } = getProductPricing(product);
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -88,7 +87,7 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
             "offers": {
               "@type": "Offer",
               "priceCurrency": "RWF",
-              "price": product.price,
+              "price": dealPrice,
               "availability": product.stockStatus === 'in_stock' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
             }
           })}

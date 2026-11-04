@@ -64,7 +64,7 @@ export default function CustomerLogin() {
           {/* Logo + heading */}
           <div className="flex flex-col items-center mb-8">
             <Link href="/">
-              <img src="/images/logo.png" alt="DOPIK" className="h-10 object-contain mb-3"
+              <img src="/images/logo.webp" alt="DOPIK" className="h-10 object-contain mb-3"
                 onError={(e) => (e.currentTarget.style.display = "none")} />
             </Link>
             <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">Welcome Back</h1>

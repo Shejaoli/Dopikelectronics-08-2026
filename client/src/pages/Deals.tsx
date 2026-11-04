@@ -22,15 +22,13 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PriceRangeSlider } from "@/components/PriceRangeSlider";
+import { getProductPricing } from "@shared/product-pricing";
 
 const formatRwf = (amount: number) =>
   `${new Intl.NumberFormat("en-RW", { maximumFractionDigits: 0 }).format(amount)} RWF`;
 
 function SpotlightDeal({ product }: { product: Product }) {
-  const discount = Math.max(0, product.hotDealDiscount ?? 0);
-  const salePrice = discount > 0
-    ? Math.round(product.price * (1 - discount / 100))
-    : product.price;
+  const { discount, salePrice } = getProductPricing(product);
 
   return (
     <Link
@@ -99,7 +97,7 @@ export default function Deals() {
   const products = hotDeals ?? [];
   const categories = ["All Deals", ...Array.from(new Set(products.map((product) => product.category))).sort()];
   const brands = Array.from(new Set(products.map((product) => product.brand).filter(Boolean))).sort();
-  const topDiscount = Math.max(0, ...products.map((product) => product.hotDealDiscount ?? 0));
+  const topDiscount = Math.max(0, ...products.map((product) => getProductPricing(product).discount));
   const spotlightProducts = products.slice(0, 3);
 
   const filteredDeals = useMemo(() => products.filter((product) => {
@@ -107,7 +105,8 @@ export default function Deals() {
     if (query && !`${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query)) return false;
     if (category !== "All Deals" && product.category !== category) return false;
     if (selectedBrands.length > 0 && !selectedBrands.includes(product.brand)) return false;
-    if (product.price < priceRange[0] || product.price > priceRange[1]) return false;
+    const { salePrice } = getProductPricing(product);
+    if (salePrice < priceRange[0] || salePrice > priceRange[1]) return false;
     return true;
   }), [products, searchTerm, category, selectedBrands, priceRange]);
 

@@ -12,6 +12,7 @@ export function useProducts(filters?: { category?: string; featured?: string; se
 
   return useQuery({
     queryKey,
+    staleTime: 30_000,
     queryFn: async () => {
       if (filterInBrowser) {
         const res = await fetch(api.products.list.path);
@@ -45,6 +46,7 @@ export function useProducts(filters?: { category?: string; featured?: string; se
 export function useProduct(id: number) {
   return useQuery({
     queryKey: [api.products.get.path, id],
+    staleTime: 30_000,
     queryFn: async () => {
       const url = buildUrl(api.products.get.path, { id });
       const res = await fetch(url);
@@ -59,6 +61,7 @@ export function useProduct(id: number) {
 export function useProductBySlug(slug: string) {
   return useQuery({
     queryKey: ["/api/products/slug", slug],
+    staleTime: 30_000,
     queryFn: async () => {
       if (!slug) return null;
       const res = await fetch(`/api/products/slug/${slug}`);

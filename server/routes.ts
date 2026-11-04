@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
+import { getProductPricing } from "@shared/product-pricing";
 import { z } from "zod";
 import { hashPassword, verifyPassword, requireAdminAuth, requireSuperAdminAuth } from "./auth";
 import { db } from "./db";
@@ -62,7 +63,7 @@ function normalizeRwandaPhone(value: string): string {
   throw new Error("Enter an MTN Rwanda number starting with 078 or 079");
 }
 
-async function priceIpayOrderItems(value: unknown): Promise<{
+async function priceOrderItems(value: unknown): Promise<{
   productId: number;
   name: string;
   quantity: number;
@@ -106,18 +107,19 @@ async function priceIpayOrderItems(value: unknown): Promise<{
     const product = productsById.get(item.productId);
     if (!product) throw new Error(`Product ${item.productId} is no longer available.`);
 
-    let price = product.price;
+    let priceOffset = 0;
     if (item.storage) {
       const storage = product.variations?.storage?.find((option) => option.option === item.storage);
       if (!storage) throw new Error(`Selected storage is unavailable for ${product.name}.`);
       if (!Number.isSafeInteger(storage.priceOffset)) {
         throw new Error(`Invalid stored price for ${product.name}.`);
       }
-      price += storage.priceOffset;
+      priceOffset = storage.priceOffset;
     }
     if (item.color && !product.variations?.colors?.some((option) => option.name === item.color)) {
       throw new Error(`Selected color is unavailable for ${product.name}.`);
     }
+    const price = getProductPricing(product, priceOffset).salePrice;
     if (!Number.isSafeInteger(price) || price < 1) {
       throw new Error(`Invalid stored price for ${product.name}.`);
     }
@@ -298,6 +300,49 @@ export async function registerRoutes(
   dirs.forEach(dir => {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
+    }
+  });
+
+  // Product image URLs are generated with unique filenames at upload time.
+  // Serve a cached, resized WebP derivative at the same URL so existing
+  // catalog records benefit without requiring a database migration.
+  app.get("/uploads/products/:filename", async (req, res, next) => {
+    const filename = req.params.filename;
+    if (
+      !sharpModule ||
+      path.basename(filename) !== filename ||
+      !/\.(?:jpe?g|png|webp)$/i.test(filename)
+    ) {
+      return next();
+    }
+
+    const sourcePath = path.join(uploadsProductsDir, filename);
+    try {
+      const sourceStat = await fs.promises.stat(sourcePath);
+      if (!sourceStat.isFile()) return next();
+
+      const optimizedDir = path.join(uploadsProductsDir, ".optimized");
+      await fs.promises.mkdir(optimizedDir, { recursive: true });
+      const parsedName = path.parse(filename).name;
+      const optimizedName = `${parsedName}-${Math.trunc(sourceStat.mtimeMs)}-${sourceStat.size}.webp`;
+      const optimizedPath = path.join(optimizedDir, optimizedName);
+
+      try {
+        await fs.promises.access(optimizedPath, fs.constants.R_OK);
+      } catch {
+        await sharpModule(sourcePath)
+          .rotate()
+          .resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 80, effort: 4 })
+          .toFile(optimizedPath);
+      }
+
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.type("image/webp").sendFile(optimizedPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return next();
+      console.error(`Product image optimization failed for ${filename}:`, error);
+      return next();
     }
   });
 
@@ -1565,9 +1610,7 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
       }
 
       // Calculate total amount from items to ensure accuracy
-      const orderItems = isIpayMtn
-        ? await priceIpayOrderItems(data.items)
-        : (data.items || []);
+      const orderItems = await priceOrderItems(data.items);
       const itemsTotal = orderItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
 
       // Look up the delivery fee server-side from the selected sector.
@@ -2443,7 +2486,7 @@ async function seedDatabase() {
         price: 1800000,
         category: "Smartphones",
         brand: "Apple",
-        imageUrl: "/images/iphone-17-pro-max-1.png",
+        imageUrl: "/images/iphone-17-pro-max-1.webp",
         stockStatus: "pre_order",
         isFeatured: true,
         specs: { "Storage": "256GB/512GB/1TB", "Chip": "A19 Pro", "Display": "6.9-inch Super Retina XDR" }
@@ -2454,7 +2497,7 @@ async function seedDatabase() {
         price: 120000,
         category: "Audio",
         brand: "Soundcore",
-        imageUrl: "/images/soundcore-liberty-4.jpg",
+        imageUrl: "/images/soundcore-liberty-4.webp",
         stockStatus: "in_stock",
         isFeatured: true,
         specs: { "Battery": "10H/50H", "ANC": "Adaptive ANC 2.0", "Codec": "LDAC" }
@@ -2465,7 +2508,7 @@ async function seedDatabase() {
         price: 250000,
         category: "Audio",
         brand: "Beats",
-        imageUrl: "/images/beats-pill.jpg",
+        imageUrl: "/images/beats-pill.webp",
         stockStatus: "in_stock",
         isFeatured: true,
         specs: { "Battery": "Up to 24 hours", "Connectivity": "Bluetooth & USB-C", "Water Resistance": "IP67" }
@@ -2476,7 +2519,7 @@ async function seedDatabase() {
         price: 65000,
         category: "Accessories",
         brand: "UGREEN",
-        imageUrl: "/images/ugreen-adapter.jpg",
+        imageUrl: "/images/ugreen-adapter.webp",
         stockStatus: "in_stock",
         isFeatured: false,
         specs: { "Ports": "HDMI, 3x USB 3.0, SD/TF", "Power": "100W PD" }
@@ -2487,7 +2530,7 @@ async function seedDatabase() {
         price: 280000,
         category: "Creator Gear",
         brand: "Saramonic",
-        imageUrl: "/images/saramonic-mic.jpg",
+        imageUrl: "/images/saramonic-mic.webp",
         stockStatus: "in_stock",
         isFeatured: true,
         specs: { "Range": "100m", "Channels": "Dual", "Battery": "Built-in" }
@@ -2498,7 +2541,7 @@ async function seedDatabase() {
         price: 1200000,
         category: "Smartphones",
         brand: "Apple",
-        imageUrl: "/images/iphone-16.png",
+        imageUrl: "/images/iphone-16.webp",
         stockStatus: "in_stock",
         isFeatured: true,
         specs: { "Storage": "128GB/256GB", "Chip": "A18", "Display": "6.1-inch Super Retina XDR" }

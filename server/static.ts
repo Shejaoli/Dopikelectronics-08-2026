@@ -2,6 +2,8 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 
+const sharp = require("sharp");
+
 export function serveStatic(app: Express) {
   const distPath = path.resolve(__dirname, "public");
   if (!fs.existsSync(distPath)) {
@@ -9,6 +11,42 @@ export function serveStatic(app: Express) {
       `Could not find the build directory: ${distPath}, make sure to build the client first`,
     );
   }
+
+  // Existing catalog data contains image URLs with stable filenames. Return
+  // resized WebP data at those same URLs, cached on disk after the first hit.
+  app.get("/images/:filename", async (req, res, next) => {
+    const filename = req.params.filename;
+    if (path.basename(filename) !== filename || !/\.(?:jpe?g|png|webp)$/i.test(filename)) {
+      return next();
+    }
+
+    const sourcePath = path.join(distPath, "images", filename);
+    try {
+      const sourceStat = await fs.promises.stat(sourcePath);
+      if (!sourceStat.isFile()) return next();
+
+      const optimizedDir = path.join(distPath, ".optimized-images");
+      await fs.promises.mkdir(optimizedDir, { recursive: true });
+      const optimizedName = `${path.parse(filename).name}-${Math.trunc(sourceStat.mtimeMs)}-${sourceStat.size}.webp`;
+      const optimizedPath = path.join(optimizedDir, optimizedName);
+      try {
+        await fs.promises.access(optimizedPath, fs.constants.R_OK);
+      } catch {
+        await sharp(sourcePath)
+          .rotate()
+          .resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 80, effort: 4 })
+          .toFile(optimizedPath);
+      }
+
+      res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
+      res.type("image/webp").sendFile(optimizedPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return next();
+      console.error(`Static image optimization failed for ${filename}:`, error);
+      return next();
+    }
+  });
 
   // Serve build-time Brotli variants for fingerprinted JavaScript and CSS.
   // These files are byte-for-byte tied to the hashed asset URL, so they remain
@@ -45,12 +83,21 @@ export function serveStatic(app: Express) {
       etag: true,
       lastModified: true,
       setHeaders: (res, filePath) => {
+        const relativePath = path.relative(distPath, filePath).replace(/\\/g, "/");
+
         // Vite fingerprints bundled assets, so they can be cached until their
-        // content hash changes. Keep the HTML shell and named public files
-        // revalidating so deployments and product images update promptly.
-        const relativePath = path.relative(path.join(distPath, "assets"), filePath);
-        if (!relativePath.startsWith("..") && !path.isAbsolute(relativePath)) {
+        // content hash changes. Keep the HTML shell and other named files on
+        // the default short cache; public images use the longer policy below.
+        if (relativePath.startsWith("assets/")) {
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (
+          relativePath.startsWith("images/") ||
+          /^(?:dopik-logo|logo)\.(?:png|webp|svg)$/.test(relativePath)
+        ) {
+          // Public product and hero image URLs are stable names rather than
+          // content hashes. A month-long cache substantially improves repeat
+          // visits while still allowing changed catalog imagery to refresh.
+          res.setHeader("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
         }
       },
     }),

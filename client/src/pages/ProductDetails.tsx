@@ -14,6 +14,7 @@ import { Helmet } from "react-helmet-async";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { getProductPricing } from "@shared/product-pricing";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -145,7 +146,7 @@ export default function ProductDetails() {
     setMeta('og:image', product.imageUrl, 'property');
     setMeta('og:url', window.location.href, 'property');
     setMeta('og:type', 'product', 'property');
-    setMeta('og:price:amount', product.price.toString(), 'property');
+    setMeta('og:price:amount', getProductPricing(product).salePrice.toString(), 'property');
     setMeta('og:price:currency', 'RWF', 'property');
     setMeta('twitter:card', 'summary_large_image');
     setMeta('twitter:title', product.name);
@@ -163,15 +164,15 @@ export default function ProductDetails() {
 
   const currentStorage = storageOptions.find(s => s.option === selectedStorage);
   const currentColor = colorOptions.find(c => c.name === selectedColor);
+  const productPricing = getProductPricing(product, currentStorage?.priceOffset || 0);
   const isOutOfStock = (currentStorage?.stock === 0) || (currentColor?.stock === 0);
   const maxStock = Math.min(currentStorage?.stock ?? 99, currentColor?.stock ?? 99);
 
   const handleAddToCart = () => {
-    const currentPriceOffset = currentStorage?.priceOffset || 0;
-    const itemTotalPrice = (product.price + currentPriceOffset) * quantity;
+    const itemTotalPrice = productPricing.salePrice * quantity;
     const cartItem = {
       productId: product.id, name: product.name,
-      price: itemTotalPrice / quantity, originalPrice: product.hotDealDiscount > 0 ? product.price : undefined, totalPrice: itemTotalPrice,
+      price: productPricing.salePrice, originalPrice: productPricing.hasDiscount ? productPricing.regularPrice : undefined, totalPrice: itemTotalPrice,
       quantity, storage: selectedStorage, color: selectedColor, imageUrl: product.imageUrl,
     };
     const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -195,11 +196,10 @@ export default function ProductDetails() {
   };
 
   const handleBuyNow = () => {
-    const currentPriceOffset = currentStorage?.priceOffset || 0;
-    const itemTotalPrice = (product.price + currentPriceOffset) * quantity;
+    const itemTotalPrice = productPricing.salePrice * quantity;
     const cartItem = {
       productId: product.id, name: product.name,
-      price: itemTotalPrice / quantity, originalPrice: product.hotDealDiscount > 0 ? product.price : undefined, totalPrice: itemTotalPrice,
+      price: productPricing.salePrice, originalPrice: productPricing.hasDiscount ? productPricing.regularPrice : undefined, totalPrice: itemTotalPrice,
       quantity, storage: selectedStorage, color: selectedColor, imageUrl: product.imageUrl,
     };
     // Buy Now takes this single item straight to checkout (replaces cart, matching "buy now" intent)
@@ -209,11 +209,10 @@ export default function ProductDetails() {
     setLocation("/checkout/shipping");
   };
 
-  const currentPriceOffset = currentStorage?.priceOffset || 0;
-  const totalPrice = (product.price + currentPriceOffset) * quantity;
+  const totalPrice = productPricing.salePrice * quantity;
   const formatPrice = (price: number) => new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(price);
 
-  const whatsappOrderMessage = `Hello DOPIK ELECTRONICS, I want to order: ${product.name} - RF ${product.price + currentPriceOffset}. Please confirm availability.`;
+  const whatsappOrderMessage = `Hello DOPIK ELECTRONICS, I want to order: ${product.name} - RF ${productPricing.salePrice}. Please confirm availability.`;
   const whatsappUrl = `https://wa.me/250783562143?text=${encodeURIComponent(whatsappOrderMessage)}`;
   const specs = product.specs as Record<string, string> || {};
 
@@ -225,7 +224,7 @@ export default function ProductDetails() {
     "brand": { "@type": "Brand", "name": (product.brand && product.brand.trim() !== "") ? product.brand.trim() : "Dopik Electronics" },
     ...(reviewStats.reviewCount > 0 ? { "aggregateRating": { "@type": "AggregateRating", "ratingValue": reviewStats.averageRating.toString(), "reviewCount": reviewStats.reviewCount.toString(), "bestRating": "5", "worstRating": "1" } } : {}),
     "offers": {
-      "@type": "Offer", "price": product.price.toString(), "priceCurrency": "RWF",
+      "@type": "Offer", "price": getProductPricing(product).salePrice.toString(), "priceCurrency": "RWF",
       "priceValidUntil": priceValidUntilStr,
       "availability": product.stockStatus === 'in_stock' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       "itemCondition": "https://schema.org/RefurbishedCondition",
@@ -391,10 +390,10 @@ export default function ProductDetails() {
                 <span className="text-2xl font-black text-primary tracking-tight">{formatPrice(totalPrice)}</span>
                 <span className="text-xs text-muted-foreground">Incl. VAT</span>
               </div>
-              {product.hotDealDiscount > 0 && (
+              {productPricing.hasDiscount && (
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-muted-foreground line-through">{formatPrice(product.price)}</span>
-                  <span className="text-xs font-black text-white bg-green-600 px-2 py-0.5 rounded-full">{product.hotDealDiscount}% OFF</span>
+                  <span className="text-sm text-muted-foreground line-through">{formatPrice(productPricing.regularPrice * quantity)}</span>
+                  <span className="text-xs font-black text-white bg-green-600 px-2 py-0.5 rounded-full">{productPricing.discount}% OFF</span>
                 </div>
               )}
             </div>
@@ -815,10 +814,10 @@ export default function ProductDetails() {
               <span className="text-[22px] font-black text-gray-900 dark:text-white tracking-tight">{formatPrice(totalPrice)}</span>
               <span className="text-[11px] text-gray-400 font-normal">Incl. VAT</span>
             </div>
-            {product.hotDealDiscount > 0 && (
+            {productPricing.hasDiscount && (
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[12px] text-gray-400 line-through">{formatPrice(product.price)}</span>
-                <span className="text-[10px] font-black text-white bg-green-600 px-2 py-0.5 rounded-full">{product.hotDealDiscount}% OFF</span>
+                <span className="text-[12px] text-gray-400 line-through">{formatPrice(productPricing.regularPrice * quantity)}</span>
+                <span className="text-[10px] font-black text-white bg-green-600 px-2 py-0.5 rounded-full">{productPricing.discount}% OFF</span>
               </div>
             )}
             {isOutOfStock && (

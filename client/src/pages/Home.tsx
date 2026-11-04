@@ -30,6 +30,7 @@ function useTouchSwipe(onSwipeLeft: () => void, onSwipeRight: () => void) {
 }
 import { useQuery } from "@tanstack/react-query";
 import { CouponCode } from "@shared/schema";
+import { getProductPricing } from "@shared/product-pricing";
 
 import { 
   ArrowRight, 
@@ -75,14 +76,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Category Images
-import smartphonesCat from "@assets/Phone_category_1768723350746.png";
-import laptopsCat from "@assets/Laptop_category_1768723909466.png";
-import tabletsCat from "@assets/tablet_category_1768724210189.png";
-import watchesCat from "@assets/smartwatches_category_1768746560605.png";
-import gamingCat from "@assets/Gaming_category_1768746932352.png";
-import audioCat from "@assets/Audio_category_1768748035466.png";
-import accessoriesCat from "@assets/Accessoirs_category_1768748494801.png";
-import electronicsCat from "@assets/Electronics_category_1768749381858.png";
+import smartphonesCat from "@assets/Phone_category_1768723350746.webp";
+import laptopsCat from "@assets/Laptop_category_1768723909466.webp";
+import tabletsCat from "@assets/tablet_category_1768724210189.webp";
+import watchesCat from "@assets/smartwatches_category_1768746560605.webp";
+import gamingCat from "@assets/Gaming_category_1768746932352.webp";
+import audioCat from "@assets/Audio_category_1768748035466.webp";
+import accessoriesCat from "@assets/Accessoirs_category_1768748494801.webp";
+import electronicsCat from "@assets/Electronics_category_1768749381858.webp";
 
 const HomeHero = () => {
   const [activeSlide, setActiveSlide] = useState(0);
@@ -434,8 +435,9 @@ const TopDeals = () => {
     scrollRef.current?.scrollBy({ left: dir === "left" ? -200 : 200, behavior: "smooth" });
   };
 
-  const products = (hotDeals || []).filter((p: any) => p.hotDealDiscount && p.hotDealDiscount > 0);
+  const products = (hotDeals || []).filter((p: any) => p.isHotDeal && p.hotDealDiscount && p.hotDealDiscount > 0);
   if (products.length === 0) return null;
+  const maxDiscount = Math.max(...products.map((product: any) => getProductPricing(product).discount));
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -468,7 +470,7 @@ const TopDeals = () => {
 
             {/* Left: label + timer + button */}
             <div className="relative z-10 flex flex-col justify-center gap-1.5 px-4 py-4 flex-1">
-              <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "#F5CE33" }}>SAVE UP TO 70%</p>
+              <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "#F5CE33" }}>SAVE UP TO {maxDiscount}%</p>
               <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest">Today Deals</p>
               <div className="font-black text-white tabular-nums text-3xl tracking-widest leading-none">
                 {pad(timeLeft.hours)}<span style={{ color: "#F5CE33" }} className="mx-1">:</span>{pad(timeLeft.minutes)}<span style={{ color: "#F5CE33" }} className="mx-1">:</span>{pad(timeLeft.seconds)}
@@ -527,7 +529,7 @@ const TopDeals = () => {
             <svg viewBox="0 0 200 90" className="w-full absolute top-0 left-0 z-10" aria-hidden="true">
               <defs><path id="arc-top-td" d="M 18,78 A 88,88 0 0,1 182,78" /></defs>
               <text fill="#F5CE33" fontSize="12.5" fontWeight="900" fontFamily="system-ui,sans-serif" letterSpacing="1.5">
-                <textPath href="#arc-top-td" startOffset="50%" textAnchor="middle">SAVE UP TO 70%</textPath>
+                <textPath href="#arc-top-td" startOffset="50%" textAnchor="middle">SAVE UP TO {maxDiscount}%</textPath>
               </text>
             </svg>
 
@@ -635,12 +637,12 @@ const TrustBanner = () => {
 };
 const MaximizeSavings = () => {
   const savingsDeals = [
-    { badge: "10% Off", badgeColor: "#1565C0", img: "/images/ugreen-adapter.jpg", name: "USB-C Hub", worth: "RWF 6,500" },
-    { badge: "Free", badgeColor: "#25a244", img: "/images/soundcore-liberty-4.jpg", name: "Earbuds Case", worth: "RWF 8,000" },
-    { badge: "Flash", badgeColor: "#e53935", img: "/images/iphone-16.png", name: "iPhone 16", worth: "RWF 1,200,000" },
-    { badge: "BOGO", badgeColor: "#FFC107", img: "/images/beats-pill.jpg", name: "Beats Pill", worth: "RWF 250,000" },
-    { badge: "15% Off", badgeColor: "#1565C0", img: "/images/saramonic-mic.jpg", name: "Mic System", worth: "RWF 42,000" },
-    { badge: "Free", badgeColor: "#25a244", img: "/images/iphone-17-pro-max-1.png", name: "Screen Guard", worth: "RWF 5,000" },
+    { badge: "10% Off", badgeColor: "#1565C0", img: "/images/ugreen-adapter.webp", name: "USB-C Hub", worth: "RWF 6,500" },
+    { badge: "Free", badgeColor: "#25a244", img: "/images/soundcore-liberty-4.webp", name: "Earbuds Case", worth: "RWF 8,000" },
+    { badge: "Flash", badgeColor: "#e53935", img: "/images/iphone-16.webp", name: "iPhone 16", worth: "RWF 1,200,000" },
+    { badge: "BOGO", badgeColor: "#FFC107", img: "/images/beats-pill.webp", name: "Beats Pill", worth: "RWF 250,000" },
+    { badge: "15% Off", badgeColor: "#1565C0", img: "/images/saramonic-mic.webp", name: "Mic System", worth: "RWF 42,000" },
+    { badge: "Free", badgeColor: "#25a244", img: "/images/iphone-17-pro-max-1.webp", name: "Screen Guard", worth: "RWF 5,000" },
   ];
 
   const { data: activeCoupons = [] } = useQuery<CouponCode[]>({

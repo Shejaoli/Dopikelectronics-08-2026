@@ -80,7 +80,7 @@ function PageSkeleton() {
         padding: "0 24px", gap: 16,
         background: navBg, borderBottom: navBorder,
       }}>
-        <img src="/dopik-logo.png" alt="Dopik" style={{ height: 36, width: 36, objectFit: "contain", flexShrink: 0 }} />
+        <img src="/dopik-logo.webp" alt="Dopik" style={{ height: 36, width: 36, objectFit: "contain", flexShrink: 0 }} />
         <span style={{ fontWeight: 900, fontSize: 14, letterSpacing: "0.2em", flexShrink: 0, color: brandColor }}>DOPIK</span>
         <div style={{ flex: 1, maxWidth: 480, height: 38, borderRadius: 20, background: searchBg, margin: "0 auto" }} />
         <SkBlock style={{ width: 64, height: 20, borderRadius: 10, flexShrink: 0 }} />

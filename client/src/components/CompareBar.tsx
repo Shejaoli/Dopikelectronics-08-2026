@@ -5,6 +5,7 @@ import { useCompare } from "@/contexts/CompareContext";
 import { Product } from "@shared/schema";
 import { useState } from "react";
 import { Link } from "wouter";
+import { getProductPricing } from "@shared/product-pricing";
 
 function CompareModal({ products, onClose }: { products: Product[]; onClose: () => void }) {
   const formatPrice = (price: number) =>
@@ -77,9 +78,7 @@ function CompareModal({ products, onClose }: { products: Product[]; onClose: () 
                 <tr className="bg-primary/5 border-b border-border">
                   <td className="p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Price</td>
                   {products.map(p => {
-                    const discount = p.hotDealDiscount ?? 0;
-                    const hasDiscount = p.isHotDeal && discount > 0;
-                    const dealPrice = hasDiscount ? Math.round(p.price * (1 - discount / 100)) : p.price;
+                    const { discount, hasDiscount, salePrice: dealPrice } = getProductPricing(p);
                     return (
                       <td key={p.id} className="p-4 text-center">
                         {hasDiscount && (

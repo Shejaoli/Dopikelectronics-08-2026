@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
+import { getProductPricing } from "@shared/product-pricing";
 
 interface CartItem {
   productId: number;
@@ -43,6 +44,29 @@ export default function Cart() {
     return () => window.removeEventListener("storage", loadCart);
   }, []);
 
+  useEffect(() => {
+    if (products.length === 0 || cart.length === 0) return;
+    const repricedCart = cart.map((item) => {
+      const product = products.find((entry) => entry.id === item.productId);
+      if (!product) return item;
+      const storageOffset = product.variations?.storage?.find((option) => option.option === item.storage)?.priceOffset ?? 0;
+      const pricing = getProductPricing(product, storageOffset);
+      return {
+        ...item,
+        name: product.name,
+        imageUrl: product.imageUrl,
+        price: pricing.salePrice,
+        originalPrice: pricing.hasDiscount ? pricing.regularPrice : undefined,
+        totalPrice: pricing.salePrice * item.quantity,
+      };
+    });
+    if (JSON.stringify(repricedCart) !== JSON.stringify(cart)) {
+      setCart(repricedCart);
+      localStorage.setItem("cart", JSON.stringify(repricedCart));
+      window.dispatchEvent(new Event("storage"));
+    }
+  }, [products, cart]);
+
   const updateQuantity = (index: number, delta: number) => {
     const newCart = [...cart];
     newCart[index].quantity = Math.max(1, newCart[index].quantity + delta);
@@ -60,10 +84,7 @@ export default function Cart() {
   };
 
   const addRecommendedProduct = (product: Product) => {
-    const hasDiscount = product.isHotDeal && (product.hotDealDiscount || 0) > 0;
-    const price = hasDiscount
-      ? Math.round(product.price * (1 - (product.hotDealDiscount || 0) / 100))
-      : product.price;
+    const { hasDiscount, salePrice: price, regularPrice } = getProductPricing(product);
     const newCart = [...cart];
     const existingIndex = newCart.findIndex(
       (item) => item.productId === product.id && !item.storage && !item.color
@@ -80,7 +101,7 @@ export default function Cart() {
         productId: product.id,
         name: product.name,
         price,
-        originalPrice: hasDiscount ? product.price : undefined,
+        originalPrice: hasDiscount ? regularPrice : undefined,
         totalPrice: price,
         quantity: 1,
         storage: "",
@@ -332,10 +353,7 @@ export default function Cart() {
             </div>
             <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-4">
               {recommendations.map((product) => {
-                const isDeal = product.isHotDeal && (product.hotDealDiscount || 0) > 0;
-                const price = isDeal
-                  ? Math.round(product.price * (1 - (product.hotDealDiscount || 0) / 100))
-                  : product.price;
+                const { hasDiscount: isDeal, salePrice: price } = getProductPricing(product);
                 return (
                   <article
                     key={product.id}

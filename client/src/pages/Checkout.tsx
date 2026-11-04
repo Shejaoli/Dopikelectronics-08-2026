@@ -26,6 +26,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { DELIVERY_ADDRESS_STORAGE_KEY, readSavedDeliveryAddress, type DeliveryAddress } from "@/lib/delivery-address";
+import { useProducts } from "@/hooks/use-products";
+import { getProductPricing } from "@shared/product-pricing";
 
 interface CartItem {
   productId: number;
@@ -36,6 +38,7 @@ interface CartItem {
   storage: string;
   color: string;
   imageUrl: string;
+  originalPrice?: number;
 }
 
 // Delivery/pickup time slots, with 24-hour end times used to detect passed slots
@@ -95,6 +98,7 @@ function CheckoutSingle({
   cart,
   total,
   formatPrice,
+  isLoadingProducts,
   setLocation,
   setCreatedOrder,
 }: {
@@ -102,6 +106,7 @@ function CheckoutSingle({
   cart: any[],
   total: number,
   formatPrice: (p: number) => string,
+  isLoadingProducts: boolean,
   setLocation: (l: string) => void,
   setCreatedOrder: (o: any) => void,
 }) {
@@ -449,10 +454,10 @@ function CheckoutSingle({
         <div className="space-y-4">
           <Button
             type="submit" 
-            disabled={orderMutation.isPending || !watchPaymentMethod || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
+            disabled={orderMutation.isPending || isLoadingProducts || !watchPaymentMethod || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
             className="w-full py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-tighter"
           >
-            {orderMutation.isPending ? "Processing..." : "Pay Now"}
+            {isLoadingProducts ? "Updating prices..." : orderMutation.isPending ? "Processing..." : "Pay Now"}
             <ArrowRight className="ml-2 h-6 w-6" />
           </Button>
           <p className="text-center text-xs text-muted-foreground font-medium">
@@ -611,6 +616,7 @@ export default function Checkout() {
   const [location, setLocation] = useLocation();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [createdOrder, setCreatedOrder] = useState<any>(null);
+  const { data: products = [], isLoading: isLoadingProducts } = useProducts();
 
   const { data: customer } = useQuery<any>({
     queryKey: ["/api/customer/me"],
@@ -649,6 +655,29 @@ export default function Checkout() {
     }
 
   }, [location, setLocation]);
+
+  useEffect(() => {
+    if (products.length === 0 || cart.length === 0) return;
+    const repricedCart = cart.map((item) => {
+      const product = products.find((entry) => entry.id === item.productId);
+      if (!product) return item;
+      const storageOffset = product.variations?.storage?.find((option) => option.option === item.storage)?.priceOffset ?? 0;
+      const pricing = getProductPricing(product, storageOffset);
+      return {
+        ...item,
+        name: product.name,
+        imageUrl: product.imageUrl,
+        price: pricing.salePrice,
+        originalPrice: pricing.hasDiscount ? pricing.regularPrice : undefined,
+        totalPrice: pricing.salePrice * item.quantity,
+      };
+    });
+    if (JSON.stringify(repricedCart) !== JSON.stringify(cart)) {
+      setCart(repricedCart);
+      localStorage.setItem("cart", JSON.stringify(repricedCart));
+      window.dispatchEvent(new Event("storage"));
+    }
+  }, [products, cart]);
 
   // Auto-fill from customer account (only empty fields, never overwrites what was typed)
   useEffect(() => {
@@ -722,6 +751,7 @@ export default function Checkout() {
               cart={cart}
               total={total}
               formatPrice={formatPrice}
+              isLoadingProducts={isLoadingProducts}
               setLocation={setLocation}
               setCreatedOrder={setCreatedOrder}
             />
