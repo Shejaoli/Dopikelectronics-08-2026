@@ -8,6 +8,7 @@ import { QuickViewModal } from "./QuickViewModal";
 import { useCompare } from "@/contexts/CompareContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { getProductPricing } from "@shared/product-pricing";
+import { getResponsiveImageProps } from "@/lib/responsive-image";
 
 interface ProductCardProps {
   product: Product;
@@ -159,7 +160,8 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
     width={400}
     height={400}
     className='h-full w-full object-contain transition-transform duration-500 group-hover:scale-105 p-2'
-    onError={(e) => { e.currentTarget.src = '/placeholder.png' }}
+    onError={(e) => { e.currentTarget.srcset = ''; e.currentTarget.src = '/placeholder.png' }}
+    {...getResponsiveImageProps(product.imageUrl || '/placeholder.png', '(max-width: 640px) 45vw, (max-width: 1024px) 22vw, 228px')}
   />
           </div>
         </Link>

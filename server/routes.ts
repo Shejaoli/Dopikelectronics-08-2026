@@ -321,10 +321,12 @@ export async function registerRoutes(
       const sourceStat = await fs.promises.stat(sourcePath);
       if (!sourceStat.isFile()) return next();
 
+      const requestedWidth = Number(req.query.w);
+      const width = [320, 480, 640, 720, 900, 1200, 1600].includes(requestedWidth) ? requestedWidth : 900;
       const optimizedDir = path.join(uploadsProductsDir, ".optimized");
       await fs.promises.mkdir(optimizedDir, { recursive: true });
       const parsedName = path.parse(filename).name;
-      const optimizedName = `${parsedName}-${Math.trunc(sourceStat.mtimeMs)}-${sourceStat.size}.webp`;
+      const optimizedName = `${parsedName}-${Math.trunc(sourceStat.mtimeMs)}-${sourceStat.size}-${width}.webp`;
       const optimizedPath = path.join(optimizedDir, optimizedName);
 
       try {
@@ -332,7 +334,7 @@ export async function registerRoutes(
       } catch {
         await sharpModule(sourcePath)
           .rotate()
-          .resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true })
+          .resize({ width, withoutEnlargement: true })
           .webp({ quality: 80, effort: 4 })
           .toFile(optimizedPath);
       }

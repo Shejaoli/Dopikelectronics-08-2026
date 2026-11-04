@@ -31,6 +31,7 @@ function useTouchSwipe(onSwipeLeft: () => void, onSwipeRight: () => void) {
 import { useQuery } from "@tanstack/react-query";
 import { CouponCode } from "@shared/schema";
 import { getProductPricing } from "@shared/product-pricing";
+import { getResponsiveImageProps } from "@/lib/responsive-image";
 
 import { 
   ArrowRight, 
@@ -126,6 +127,7 @@ const HomeHero = () => {
               exit={prefersReducedMotion ? undefined : { opacity: 0, x: -24 }}
               transition={{ duration: 0.55, ease: "easeInOut" }}
               className={`block h-full w-full ${activeSlide === 0 ? "object-cover object-center sm:object-[center_48%]" : "bg-white object-cover object-center"}`}
+              {...getResponsiveImageProps(slides[activeSlide].src, "100vw")}
             />
           </AnimatePresence>
         </Link>
@@ -190,6 +192,7 @@ const AirPodsPromotions = () => {
                 loading="lazy"
                 decoding="async"
                 className="aspect-square w-full object-cover"
+                {...getResponsiveImageProps(promotion.image, "(max-width: 640px) 100vw, 50vw")}
               />
               <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
                 <div className="min-w-0">
@@ -662,7 +665,14 @@ const MaximizeSavings = () => {
               >
                 {item.badge}
               </span>
-              <img src={item.img} alt={item.name} loading="lazy" decoding="async" className="h-full w-full object-contain" />
+              <img
+                src={item.img}
+                alt={item.name}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-contain"
+                {...getResponsiveImageProps(item.img, "100px")}
+              />
             </div>
             <div className="px-1.5 pt-1 pb-1.5 bg-[#f5f5f5] dark:bg-gray-800">
               <p className="text-[10px] font-semibold text-gray-800 dark:text-gray-200 leading-tight line-clamp-2">{item.name}</p>

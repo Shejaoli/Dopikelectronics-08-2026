@@ -25,16 +25,18 @@ export function serveStatic(app: Express) {
       const sourceStat = await fs.promises.stat(sourcePath);
       if (!sourceStat.isFile()) return next();
 
+      const requestedWidth = Number(req.query.w);
+      const width = [320, 480, 640, 720, 900, 1200, 1600].includes(requestedWidth) ? requestedWidth : 900;
       const optimizedDir = path.join(distPath, ".optimized-images");
       await fs.promises.mkdir(optimizedDir, { recursive: true });
-      const optimizedName = `${path.parse(filename).name}-${Math.trunc(sourceStat.mtimeMs)}-${sourceStat.size}.webp`;
+      const optimizedName = `${path.parse(filename).name}-${Math.trunc(sourceStat.mtimeMs)}-${sourceStat.size}-${width}.webp`;
       const optimizedPath = path.join(optimizedDir, optimizedName);
       try {
         await fs.promises.access(optimizedPath, fs.constants.R_OK);
       } catch {
         await sharp(sourcePath)
           .rotate()
-          .resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true })
+          .resize({ width, withoutEnlargement: true })
           .webp({ quality: 80, effort: 4 })
           .toFile(optimizedPath);
       }

@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PriceRangeSlider } from "@/components/PriceRangeSlider";
 import { getProductPricing } from "@shared/product-pricing";
+import { getResponsiveImageProps } from "@/lib/responsive-image";
 
 const formatRwf = (amount: number) =>
   `${new Intl.NumberFormat("en-RW", { maximumFractionDigits: 0 }).format(amount)} RWF`;
@@ -46,6 +47,7 @@ function SpotlightDeal({ product }: { product: Product }) {
           height={400}
           className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
           onError={(event) => { event.currentTarget.src = "/placeholder.png"; }}
+          {...getResponsiveImageProps(product.imageUrl || "/placeholder.png", "96px")}
         />
         {discount > 0 && (
           <span className="absolute left-1.5 top-1.5 rounded-md bg-yellow-400 px-1.5 py-0.5 text-[10px] font-black text-slate-950">
