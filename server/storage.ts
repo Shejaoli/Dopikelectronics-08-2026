@@ -21,6 +21,12 @@ function isRevenueOrder(order: Order): boolean {
   return REVENUE_STATUSES.has(order.status);
 }
 
+function isPaidOrder(order: Order): boolean {
+  const paidStatuses = new Set(["paid", "processing", "shipped", "completed", "delivered", "confirmed"]);
+  if (!paidStatuses.has(order.status)) return false;
+  return order.paymentMethod !== "MTN Mobile Money" || order.paymentState === "SUCCEEDED";
+}
+
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -596,16 +602,28 @@ export class DatabaseStorage implements IStorage {
       });
     }
 
-    const paidOrders = currentPeriodOrders.filter(isRevenueOrder);
-    const totalRevenue = paidOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const revenueOrders = currentPeriodOrders.filter(isRevenueOrder);
+    const totalRevenue = revenueOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const paidOrders = currentPeriodOrders.filter(isPaidOrder);
+    const lowStockProducts = allProducts.flatMap(product => {
+      if (product.stockStatus === "out_of_stock") return [{ id: product.id, name: product.name, stock: 0 }];
+      const variantStocks = [
+        ...(product.variations?.storage || []).map(variant => variant.stock),
+        ...(product.variations?.colors || []).map(variant => variant.stock),
+      ].filter((stock): stock is number => typeof stock === "number" && Number.isFinite(stock));
+      const stock = variantStocks.reduce((total, value) => total + value, 0);
+      return variantStocks.length > 0 && stock <= 5 ? [{ id: product.id, name: product.name, stock }] : [];
+    }).slice(0, 8);
 
     const [totalAdmins] = await db.select({ value: count() }).from(admins);
 
     return {
       totalOrders: currentPeriodOrders.length,
+      paidOrders: paidOrders.length,
       totalRevenue,
       totalProducts: allProducts.length,
       pendingOrders: currentPeriodOrders.filter(o => o.status === "pending").length,
+      lowStockProducts,
       totalAdmins: totalAdmins?.value || 0,
       recentOrders: [...currentPeriodOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5),
     };
@@ -722,10 +740,32 @@ export class DatabaseStorage implements IStorage {
 
     const totalOrders = filteredOrders.length;
     const paidOrdersList = filteredOrders.filter(isRevenueOrder);
-    const paidOrders = paidOrdersList.length;
+    const paidOrders = filteredOrders.filter(isPaidOrder).length;
     const pendingOrders = filteredOrders.filter(o => o.status === "pending").length;
     const totalRevenue = paidOrdersList.reduce((sum, o) => sum + o.totalAmount, 0);
     const chartData = await this.getDailyAnalytics(filters);
+    let previousFilters: { startDate?: string; endDate?: string } | undefined;
+    if (filters?.startDate) {
+      const currentStart = new Date(filters.startDate);
+      const currentEnd = filters.endDate ? new Date(filters.endDate) : new Date();
+      const periodMs = Math.max(24 * 60 * 60 * 1000, currentEnd.getTime() - currentStart.getTime());
+      previousFilters = {
+        startDate: new Date(currentStart.getTime() - periodMs).toISOString(),
+        endDate: new Date(currentStart.getTime() - 1).toISOString(),
+      };
+    }
+    const previousOrders = previousFilters
+      ? allOrders.filter(order => {
+          const date = new Date(order.createdAt);
+          return date >= new Date(previousFilters!.startDate!) && date <= new Date(previousFilters!.endDate!);
+        })
+      : [];
+    const previousRevenueOrders = previousOrders.filter(isRevenueOrder);
+    const previousZoneSales = new Map<string, number>();
+    for (const order of previousRevenueOrders) {
+      const zone = order.deliveryDistrict || order.deliveryLocation || (order.orderType === "Pickup" ? "Store pickup" : "Other locations");
+      previousZoneSales.set(zone, (previousZoneSales.get(zone) || 0) + order.totalAmount);
+    }
 
     const categoryTotals = new Map<string, { category: string; sales: number; units: number }>();
     const bestSellers = new Map<number, { productId: number; name: string; category: string; units: number; sales: number }>();
@@ -747,14 +787,43 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    const channelTotals = new Map<string, number>();
+    for (const order of filteredOrders) {
+      const channel = order.source || "Website";
+      channelTotals.set(channel, (channelTotals.get(channel) || 0) + 1);
+    }
+    const zoneTotals = new Map<string, { zone: string; orders: number; revenue: number }>();
+    for (const order of filteredOrders) {
+      const zone = order.deliveryDistrict || order.deliveryLocation || (order.orderType === "Pickup" ? "Store pickup" : "Other locations");
+      const current = zoneTotals.get(zone) || { zone, orders: 0, revenue: 0 };
+      current.orders += 1;
+      if (isRevenueOrder(order)) current.revenue += order.totalAmount;
+      zoneTotals.set(zone, current);
+    }
+    const statusGroups = [
+      { status: "Pending", count: filteredOrders.filter(order => order.status === "pending").length },
+      { status: "Paid", count: filteredOrders.filter(order => order.status === "paid").length },
+      { status: "Fulfilled", count: filteredOrders.filter(order => ["processing", "shipped", "completed", "delivered", "confirmed"].includes(order.status)).length },
+      { status: "Cancelled", count: filteredOrders.filter(order => ["cancelled", "failed", "refunded"].includes(order.status)).length },
+    ];
+
     return {
       totalOrders,
       paidOrders,
       pendingOrders,
       totalRevenue,
       chartData,
+      previousChartData: previousFilters ? await this.getDailyAnalytics(previousFilters) : [],
       categorySales: Array.from(categoryTotals.values()).sort((a, b) => b.sales - a.sales),
       bestSellers: Array.from(bestSellers.values()).sort((a, b) => b.units - a.units).slice(0, 8),
+      channelSales: Array.from(channelTotals.entries()).map(([channel, orders]) => ({ channel, orders })),
+      zoneSales: Array.from(zoneTotals.values()).sort((a, b) => b.orders - a.orders).slice(0, 6).map(zone => ({
+        ...zone,
+        change: previousZoneSales.has(zone.zone) && previousZoneSales.get(zone.zone)! > 0
+          ? Math.round(((zone.revenue - previousZoneSales.get(zone.zone)!) / previousZoneSales.get(zone.zone)!) * 100)
+          : null,
+      })),
+      statusGroups,
     };
   }
 

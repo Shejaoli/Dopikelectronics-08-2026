@@ -9,6 +9,7 @@ import { CompareProvider } from "@/contexts/CompareContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { CompareBar } from "@/components/CompareBar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { captureOrderSourceFromUrl } from "@/lib/order-source";
 
 // Load only the current route. Eagerly importing every page here blocks the
 // homepage on unrelated shop, checkout, and admin bundles.
@@ -127,6 +128,7 @@ function VisitorTracker() {
   const [location] = useLocation();
 
   useEffect(() => {
+    captureOrderSourceFromUrl();
     let visitorId = localStorage.getItem("visitor_id");
     if (!visitorId) {
       visitorId = Math.random().toString(36).substring(2) + Date.now().toString(36);

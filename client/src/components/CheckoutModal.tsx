@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getOrderSource } from "@/lib/order-source";
 import { useMutation } from "@tanstack/react-query";
 
 interface CheckoutModalProps {
@@ -54,7 +55,7 @@ export function CheckoutModal({ product, quantity, open, onOpenChange, selectedS
 
   const orderMutation = useMutation({
     mutationFn: async (values: InsertOrder) => {
-      const res = await apiRequest("POST", "/api/orders", values);
+      const res = await apiRequest("POST", "/api/orders", { ...values, source: getOrderSource() });
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to place order");

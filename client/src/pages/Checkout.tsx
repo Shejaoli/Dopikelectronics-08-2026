@@ -16,6 +16,7 @@ import { CheckCircle2, MessageCircle, Truck, CreditCard as CardIcon, Wallet, Cal
 import { SiVisa, SiMastercard } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiRequest } from "@/lib/queryClient";
+import { getOrderSource } from "@/lib/order-source";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { insertOrderSchema } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -237,6 +238,7 @@ function CheckoutSingle({
 
     const selectedAddress = savedDeliveryAddress || readSavedDeliveryAddress();
     const orderData = {
+      source: getOrderSource(),
       customerName: data.fullName.trim(),
       customerPhone: data.phone,
       customerEmail: data.email,

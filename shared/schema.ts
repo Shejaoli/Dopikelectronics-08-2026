@@ -72,6 +72,7 @@ export const orders = pgTable("orders", {
   paymentReference: text("payment_reference"), // stripe intent id or paypal order id
   paymentPhone: text("payment_phone"),
   paymentState: text("payment_state"),
+  source: text("source").notNull().default("Website"),
   totalAmount: integer("total_amount").notNull(),
   deliveryFee: integer("delivery_fee").default(0),
   currency: text("currency").default("RWF").notNull(),

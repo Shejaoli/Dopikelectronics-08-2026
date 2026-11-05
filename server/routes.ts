@@ -63,6 +63,20 @@ function normalizeRwandaPhone(value: string): string {
   throw new Error("Enter an MTN Rwanda number starting with 078 or 079");
 }
 
+const ORDER_SOURCES: Record<string, string> = {
+  website: "Website",
+  store: "Store",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
+  tiktok: "TikTok",
+  facebook: "Facebook",
+};
+
+function normalizeOrderSource(value: unknown): string {
+  if (typeof value !== "string") return "Website";
+  return ORDER_SOURCES[value.trim().toLowerCase()] || "Website";
+}
+
 async function priceOrderItems(value: unknown): Promise<{
   productId: number;
   name: string;
@@ -1635,6 +1649,7 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
 
       const order = await storage.createOrder({
         ...data,
+        source: normalizeOrderSource(data.source),
         items: orderItems,
         paymentReference,
         paymentPhone,
@@ -1703,6 +1718,7 @@ ${allUrls.map(({ url, priority, changefreq }) => `  <url>
 
       const order = await storage.createOrder({
         ...data,
+        source: normalizeOrderSource(data.source),
         paymentProvider: req.body.paymentProvider,
         paymentReference: req.body.paymentReference,
         status: "paid"
