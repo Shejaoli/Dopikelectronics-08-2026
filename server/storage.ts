@@ -703,6 +703,8 @@ export class DatabaseStorage implements IStorage {
 
   async getDashboardOverview(filters?: { startDate?: string; endDate?: string }): Promise<any> {
     const allOrders = await db.select().from(orders);
+    const catalog = await db.select({ id: products.id, name: products.name, category: products.category }).from(products);
+    const catalogById = new Map(catalog.map(product => [product.id, product]));
 
     let filteredOrders = allOrders;
     if (filters?.startDate || filters?.endDate) {
@@ -725,12 +727,34 @@ export class DatabaseStorage implements IStorage {
     const totalRevenue = paidOrdersList.reduce((sum, o) => sum + o.totalAmount, 0);
     const chartData = await this.getDailyAnalytics(filters);
 
+    const categoryTotals = new Map<string, { category: string; sales: number; units: number }>();
+    const bestSellers = new Map<number, { productId: number; name: string; category: string; units: number; sales: number }>();
+    for (const order of paidOrdersList) {
+      for (const item of order.items || []) {
+        const product = catalogById.get(item.productId);
+        const category = product?.category || "Other";
+        const name = product?.name || item.name || "Unknown product";
+        const units = Math.max(0, Number(item.quantity) || 0);
+        const sales = units * (Number(item.price) || 0);
+        const categoryTotal = categoryTotals.get(category) || { category, sales: 0, units: 0 };
+        categoryTotal.sales += sales;
+        categoryTotal.units += units;
+        categoryTotals.set(category, categoryTotal);
+        const bestSeller = bestSellers.get(item.productId) || { productId: item.productId, name, category, units: 0, sales: 0 };
+        bestSeller.units += units;
+        bestSeller.sales += sales;
+        bestSellers.set(item.productId, bestSeller);
+      }
+    }
+
     return {
       totalOrders,
       paidOrders,
       pendingOrders,
       totalRevenue,
-      chartData
+      chartData,
+      categorySales: Array.from(categoryTotals.values()).sort((a, b) => b.sales - a.sales),
+      bestSellers: Array.from(bestSellers.values()).sort((a, b) => b.units - a.units).slice(0, 8),
     };
   }
 

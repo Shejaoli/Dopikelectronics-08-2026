@@ -28,11 +28,18 @@ import {
   Sparkles,
   Tag,
   Truck,
+  CalendarDays,
+  Copy,
+  Download,
+  Printer,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -93,6 +100,15 @@ const MENU = [
   },
 ];
 
+const DASHBOARD_SHORTCUTS = [
+  { id: "Dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "Orders", label: "Orders", icon: ShoppingCart },
+  { id: "Hot Deals", label: "Today's Top Deals", icon: Flame },
+  { id: "Videos", label: "Promo Videos", icon: Film },
+  { id: "Reviews", label: "Reviews", icon: Star },
+];
+const CATEGORY_COLORS = ["#0866ff", "#f4c524", "#10b981", "#8b5cf6", "#f97316", "#06b6d4", "#ec4899"];
+
 function StatCard({ title, value, icon: Icon, sub, accent, onClick, trend }: any) {
   return (
     <div
@@ -128,7 +144,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       <p className="text-gray-400 mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} style={{ color: p.color }} className="font-bold">
-          {p.name === "revenue" ? fmt(p.value) : `${p.value} orders`}
+          {p.name === "revenue" || p.name === "Sales" ? fmt(p.value) : `${p.value} orders`}
         </p>
       ))}
     </div>
@@ -221,6 +237,24 @@ export default function AdminDashboard() {
     { label: "Hot Deals", icon: Flame, action: () => setActiveTab("Hot Deals") },
     { label: "Home Sections", icon: Layers, action: () => setActiveTab("Home Sections") },
   ];
+
+  const exportDashboard = () => {
+    const rows = [
+      ["Date", "Orders", "Sales (RWF)"],
+      ...(dash?.chartData || []).map((row: any) => [row.date, row.orders, row.revenue]),
+    ];
+    const csv = rows.map((row: unknown[]) => row.map((cell: unknown) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dopik-sales-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  const copyDashboardSummary = async () => {
+    const summary = `Dopik sales report — ${new Date().toLocaleDateString()}\nRevenue: ${fmt(stats?.totalRevenue || 0)}\nOrders: ${stats?.totalOrders || 0}\nPaid orders: ${stats?.paidOrders || 0}`;
+    try { await navigator.clipboard.writeText(summary); } catch { /* clipboard may be unavailable on non-secure local pages */ }
+  };
 
   if (checkingAuth) {
     return <div className="p-8">Checking authentication...</div>;
@@ -324,6 +358,17 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        {/* Primary admin destinations */}
+        <nav aria-label="Admin sections" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-gray-200 bg-white px-3 md:px-6 py-2">
+          {DASHBOARD_SHORTCUTS.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => { setActiveTab(id); setSubView("list"); }} aria-current={activeTab === id ? "page" : undefined}
+              className={cn("inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors", activeTab === id ? "bg-blue-50 text-blue-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900")}>
+              <Icon className="h-4 w-4" />{label}
+              {id === "Reviews" && pendingReviews > 0 && <span className="rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">{pendingReviews}</span>}
+            </button>
+          ))}
+        </nav>
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-3 md:p-6 pb-20 md:pb-6">
           {/* Products */}
@@ -364,7 +409,7 @@ export default function AdminDashboard() {
             /* ── Dashboard ── */
             <div className="space-y-4 md:space-y-6 text-gray-900">
 
-              {/* Time range + quick actions */}
+              {/* Report controls */}
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
                 <div className="flex gap-1 bg-white rounded-xl p-1 border border-gray-200 shadow-sm overflow-x-auto max-w-full">
                   {(["today", "7days", "30days", "lifetime"] as const).map((r) => (
@@ -380,7 +425,17 @@ export default function AdminDashboard() {
                     </button>
                   ))}
                 </div>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="mr-1 inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[11px] font-semibold text-gray-600 shadow-sm">
+                    <CalendarDays className="h-4 w-4 text-blue-600" />
+                    {timeRange === "today" ? "Today" : timeRange === "7days" ? "Last 7 days" : timeRange === "30days" ? "Last 30 days" : "All time"} · {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(new Date())}
+                  </div>
+                  <button onClick={copyDashboardSummary} aria-label="Copy dashboard summary" title="Copy report" className="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50"><Copy className="h-4 w-4" /></button>
+                  <button onClick={exportDashboard} aria-label="Download sales report" title="Download CSV" className="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50"><Download className="h-4 w-4" /></button>
+                  <button onClick={() => window.print()} aria-label="Print dashboard" title="Print" className="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50"><Printer className="h-4 w-4" /></button>
+                  <button onClick={() => setActiveTab("Settings")} aria-label="Dashboard settings" title="Settings" className="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50"><Settings className="h-4 w-4" /></button>
+                </div>
+                <div className="hidden gap-2 flex-wrap xl:flex">
                   {quickActions.map((qa) => (
                     <button
                       key={qa.label}
@@ -408,26 +463,15 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-black uppercase tracking-widest text-gray-500">Revenue & Orders</span>
+                      <span className="text-xs font-black uppercase tracking-widest text-gray-500">Daily Sales</span>
                     </div>
                     <div className="flex items-center gap-3 text-[10px] text-gray-400">
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary inline-block" /> Revenue</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-400 inline-block" /> Orders</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary inline-block" /> Sales (RWF)</span>
                     </div>
                   </div>
                   <div className="h-[240px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={dash?.chartData || []}>
-                        <defs>
-                          <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="ordGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.15} />
-                            <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
+                      <BarChart data={dash?.chartData || []}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.06)" />
                         <XAxis
                           dataKey="date"
@@ -439,9 +483,8 @@ export default function AdminDashboard() {
                         />
                         <YAxis stroke="rgba(0,0,0,0.25)" fontSize={9} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                         <RechartsTooltip content={<CustomTooltip />} />
-                        <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#revGrad)" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
-                        <Area type="monotone" dataKey="orders" stroke="#22d3ee" strokeWidth={2} fill="url(#ordGrad)" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
-                      </AreaChart>
+                        <Bar dataKey="revenue" name="Sales" fill="#0866ff" radius={[5, 5, 0, 0]} maxBarSize={28} />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
@@ -499,6 +542,32 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Sales mix and best sellers */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="mb-3">
+                    <h2 className="text-sm font-bold text-gray-800">Sales by Category</h2>
+                    <p className="mt-1 text-[11px] text-gray-400">Paid order item sales in the selected period</p>
+                  </div>
+                  {dash?.categorySales?.length ? <div className="grid grid-cols-[minmax(120px,1fr)_1fr] items-center gap-3">
+                    <div className="h-40 min-w-0"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={dash.categorySales} dataKey="sales" nameKey="category" innerRadius={43} outerRadius={66} paddingAngle={3}>
+                      {dash.categorySales.map((_: any, index: number) => <Cell key={index} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />)}
+                    </Pie><RechartsTooltip formatter={(value: number) => fmt(value)} /></PieChart></ResponsiveContainer></div>
+                    <div className="space-y-2">{dash.categorySales.slice(0, 6).map((category: any, index: number) => <div key={category.category} className="flex min-w-0 items-center gap-2 text-[11px]">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }} />
+                      <span className="min-w-0 flex-1 truncate text-gray-500">{category.category}</span><span className="font-semibold text-gray-700">{fmt(category.sales)}</span>
+                    </div>)}</div>
+                  </div> : <div className="flex h-40 items-center justify-center text-xs text-gray-400">No paid product sales in this period yet.</div>}
+                </section>
+                <section className="lg:col-span-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                  <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                    <div><h2 className="text-sm font-bold text-gray-800">Best-Selling Products</h2><p className="mt-1 text-[11px] text-gray-400">Ranked by units sold in the selected period</p></div>
+                    <button onClick={() => setActiveTab("Products")} className="text-xs font-semibold text-blue-600 hover:text-blue-800">Products <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></button>
+                  </div>
+                  {dash?.bestSellers?.length ? <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-400"><tr><th className="px-5 py-3">Product</th><th className="px-4 py-3">Category</th><th className="px-4 py-3 text-right">Units sold</th><th className="px-5 py-3 text-right">Sales</th></tr></thead><tbody className="divide-y divide-gray-100">{dash.bestSellers.slice(0, 6).map((product: any, index: number) => <tr key={product.productId} className="hover:bg-gray-50/70"><td className="px-5 py-3"><span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-md bg-blue-50 text-[10px] font-bold text-blue-700">{index + 1}</span><span className="font-semibold text-gray-700">{product.name}</span></td><td className="px-4 py-3 text-gray-500">{product.category}</td><td className="px-4 py-3 text-right font-semibold text-gray-700">{product.units}</td><td className="px-5 py-3 text-right font-bold text-gray-800">{fmt(product.sales)}</td></tr>)}</tbody></table></div> : <div className="p-8 text-center text-xs text-gray-400">Product sales will appear here after orders are placed.</div>}
+                </section>
               </div>
             </div>
           )}
