@@ -10,6 +10,7 @@ import { WishlistProvider } from "@/contexts/WishlistContext";
 import { CompareBar } from "@/components/CompareBar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { captureOrderSourceFromUrl } from "@/lib/order-source";
+import { GoogleOneTap } from "@/components/GoogleOneTap";
 
 // Load only the current route. Eagerly importing every page here blocks the
 // homepage on unrelated shop, checkout, and admin bundles.
@@ -149,6 +150,7 @@ function Router() {
     <>
       <GlobalSeo />
       <VisitorTracker />
+      <GoogleOneTap />
       <Suspense fallback={<PageSkeleton />}>
         <Switch>
           <Route path="/" component={Home} />

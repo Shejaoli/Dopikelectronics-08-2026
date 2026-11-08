@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Fragment, useState, useEffect, useRef, useCallback } from "react";
 function useTouchSwipe(onSwipeLeft: () => void, onSwipeRight: () => void) {
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -72,7 +72,9 @@ import { Button } from "@/components/ui/button";
 import { 
   Carousel, 
   CarouselContent, 
-  CarouselItem, 
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -91,12 +93,24 @@ const HomeHero = () => {
   const prefersReducedMotion = useReducedMotion();
   const slides = [
     {
-      src: "/images/hero-bestseller.jpeg",
+      src: "/images/hero-smartphones-bestseller.webp",
       alt: "Upgrade to a bestseller. Shop the phones everyone is talking about at Dopik Electronics in Kigali.",
+      href: "/shop?category=Smartphones",
     },
     {
-      src: "/images/hero-bestseller-slide-2.webp",
-      alt: "Upgrade to a bestseller. Shop now at the certified electronics shop in Kigali.",
+      src: "/images/hero-premium-laptops.webp",
+      alt: "Premium laptops for every need. Work, create, learn, and play.",
+      href: "/shop?category=Laptops",
+    },
+    {
+      src: "/images/hero-laptops-every-need.webp",
+      alt: "Premium laptops for every need, with performance, displays, and reliable quality.",
+      href: "/shop?category=Laptops",
+    },
+    {
+      src: "/images/hero-gaming-consoles.webp",
+      alt: "Gaming accessories and consoles. Play, explore, and level up.",
+      href: "/shop?category=Gaming",
     },
   ];
 
@@ -110,15 +124,15 @@ const HomeHero = () => {
 
   return (
     <section aria-label="Featured electronics promotion" className="w-full px-3 py-2 sm:px-5 sm:py-3 lg:px-6">
-      <div className={`relative mx-auto w-full max-w-[1200px] overflow-hidden rounded-2xl bg-white shadow-[0_6px_24px_rgba(18,39,71,0.12)] ring-1 ring-black/5 ${activeSlide === 0 ? "aspect-[16/9] max-h-[360px] sm:aspect-[3/1] lg:aspect-[16/5]" : "aspect-[3/1] sm:aspect-[3/1] lg:aspect-[16/5]"}`}>
-        <Link href="/shop?category=Smartphones" aria-label="Shop bestselling smartphones" className="absolute inset-0 block focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-inset">
+      <div className="relative mx-auto aspect-[1203/379] w-full max-w-[1200px] overflow-hidden rounded-2xl bg-white shadow-[0_6px_24px_rgba(18,39,71,0.12)] ring-1 ring-black/5">
+        <Link href={slides[activeSlide].href} aria-label={`Shop ${slides[activeSlide].alt}`} className="absolute inset-0 block focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-inset">
           <AnimatePresence mode="wait" initial={false}>
             <motion.img
               key={slides[activeSlide].src}
               src={slides[activeSlide].src}
               alt={slides[activeSlide].alt}
-              width={activeSlide === 0 ? 1280 : 1800}
-              height={activeSlide === 0 ? 720 : 600}
+              width={1203}
+              height={379}
               fetchPriority={activeSlide === 0 ? "high" : "auto"}
               loading={activeSlide === 0 ? "eager" : "lazy"}
               decoding="async"
@@ -126,7 +140,7 @@ const HomeHero = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={prefersReducedMotion ? undefined : { opacity: 0, x: -24 }}
               transition={{ duration: 0.55, ease: "easeInOut" }}
-              className={`block h-full w-full ${activeSlide === 0 ? "object-cover object-center sm:object-[center_48%]" : "bg-white object-cover object-center"}`}
+              className="block h-full w-full object-cover object-center"
               {...getResponsiveImageProps(slides[activeSlide].src, "100vw")}
             />
           </AnimatePresence>
@@ -148,62 +162,67 @@ const HomeHero = () => {
   );
 };
 
-const AirPodsPromotions = () => {
-  const promotions = [
+const FeaturedPosterMarquee = () => {
+  const prefersReducedMotion = useReducedMotion();
+  const posters = [
     {
-      title: "AirPods Max",
-      description: "Immersive sound, exceptional comfort, and iconic design.",
+      title: "Dopik Electronics — Your Trusted Tech Store in Kigali",
+      image: "/images/dopik-trusted-store-man.webp",
+      href: "/shop",
+    },
+    {
+      title: "DJI Mic Mini — wireless microphone for creators",
+      image: "/images/dji-mic-mini-promo.webp",
+      href: "/shop?search=DJI%20Mic%20Mini",
+    },
+    {
+      title: "Dopik Electronics — trusted technology and support in Kigali",
+      image: "/images/dopik-trusted-store-woman.webp",
+      href: "/shop",
+    },
+    {
+      title: "AirPods Max — immersive sound and exceptional comfort",
       image: "/images/airpods-max-promo.webp",
       href: "/shop?search=AirPods%20Max",
     },
     {
-      title: "AirPods Series",
-      description: "Explore AirPods with premium sound and seamless connection.",
+      title: "AirPods Series — premium sound and seamless connection",
       image: "/images/airpods-series-promo.webp",
       href: "/shop?search=AirPods",
     },
   ];
 
   return (
-    <section aria-labelledby="airpods-promotions-title" className="px-3 py-5 sm:px-5 sm:py-8 lg:px-6">
-      <div className="mx-auto max-w-[1200px]">
-        <div className="mb-3 flex items-end justify-between gap-3 sm:mb-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Featured audio</p>
-            <h2 id="airpods-promotions-title" className="mt-1 text-xl font-bold sm:text-2xl">Discover AirPods</h2>
-          </div>
-          <Link href="/shop?category=Audio" className="shrink-0 text-sm font-semibold text-primary hover:underline">
-            Shop all audio <ArrowRight className="ml-1 inline h-4 w-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
-          {promotions.map((promotion) => (
-            <Link
-              key={promotion.title}
-              href={promotion.href}
-              aria-label={`Shop ${promotion.title}`}
-              className="group overflow-hidden rounded-2xl bg-card shadow-[0_5px_22px_rgba(18,39,71,0.10)] ring-1 ring-black/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(18,39,71,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <img
-                src={promotion.image}
-                alt={`${promotion.title} promotion from Dopik Electronics`}
-                width="900"
-                height="900"
-                loading="lazy"
-                decoding="async"
-                className="aspect-square w-full object-cover"
-                {...getResponsiveImageProps(promotion.image, "(max-width: 640px) 100vw, 50vw")}
-              />
-              <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
-                <div className="min-w-0">
-                  <h3 className="font-bold">{promotion.title}</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{promotion.description}</p>
-                </div>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition group-hover:bg-primary/90 sm:text-sm">
-                  Shop now <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </span>
-              </div>
-            </Link>
+    <section aria-labelledby="featured-promos-title" className="overflow-hidden border-y border-slate-100 bg-slate-50/70 py-5 sm:py-7">
+      <div className="mb-3 px-4 sm:mx-auto sm:mb-4 sm:max-w-[1200px] sm:px-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Dopik picks</p>
+        <h2 id="featured-promos-title" className="mt-0.5 text-lg font-bold text-foreground sm:text-xl">Featured promotions</h2>
+      </div>
+      <div className="promo-marquee-viewport overflow-hidden px-3 sm:px-5 lg:px-6">
+        <div className={`promo-marquee-track flex w-max ${prefersReducedMotion ? "promo-marquee-static" : ""}`}>
+          {[false, true].map((isDuplicate) => (
+            <div key={String(isDuplicate)} aria-hidden={isDuplicate || undefined} className="flex shrink-0 gap-3 pr-3 sm:gap-4 sm:pr-4">
+              {posters.map((poster) => (
+                <Link
+                  key={poster.title}
+                  href={poster.href}
+                  aria-label={`View ${poster.title}`}
+                  tabIndex={isDuplicate ? -1 : undefined}
+                  className="group block w-[min(43vw,180px)] shrink-0 overflow-hidden rounded-xl bg-white shadow-[0_4px_16px_rgba(18,39,71,0.10)] ring-1 ring-slate-200/80 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(18,39,71,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:w-[clamp(185px,18vw,228px)] sm:rounded-2xl"
+                >
+                  <img
+                    src={poster.image}
+                    alt={poster.title}
+                    width="1000"
+                    height="1095"
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-[.91] w-full bg-white object-contain transition-transform duration-300 group-hover:scale-[1.015]"
+                    {...getResponsiveImageProps(poster.image, "(max-width: 640px) 43vw, 228px")}
+                  />
+                </Link>
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -264,7 +283,7 @@ const RecommendedProducts = () => {
       setRecentlyViewed(products);
       
       if (products.length > 0) {
-        setRecommendationReason(`Because you viewed ${products[0].name}`);
+        setRecommendationReason(`Because you viewed ${products[0]?.name || "these products"}`);
       }
     }
   }, [allProducts]);
@@ -1427,16 +1446,28 @@ const HomeSectionsDisplay = () => {
 
   const { data: allProducts } = useProducts();
 
-  if (!sections || sections.length === 0) return null;
+  if (!sections) return null;
+  if (sections.length === 0) return <FeaturedPosterMarquee />;
+
+  const targetIndices = sections.reduce((indices: number[], section: any, index: number) => {
+    const title = String(section.title || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (title.includes("newarrivals") || title.includes("bestsmartphonesofnovember")) indices.push(index);
+    return indices;
+  }, []);
+  const promoAfterIndex = targetIndices.length > 0 ? Math.max(...targetIndices) : sections.length - 1;
 
   return (
     <>
-      {sections.map((section: any) => {
+      {sections.map((section: any, index: number) => {
         let productsToShow = allProducts || [];
 
-        if (section.type === "specific_products" && section.productIds && section.productIds.length > 0) {
-          productsToShow = section.productIds
-            .map((id: number) => productsToShow.find((p: any) => p.id === id))
+        if (section.type === "specific_products") {
+          const productsById = new Map(productsToShow.map((product: any) => [Number(product.id), product]));
+          const selectedIds = Array.isArray(section.productIds)
+            ? section.productIds.map(Number).filter((id: number) => Number.isFinite(id))
+            : [];
+          productsToShow = selectedIds
+            .map((id: number) => productsById.get(id))
             .filter(Boolean);
         } else {
           if (section.categoryFilter && section.categoryFilter !== "all") {
@@ -1445,25 +1476,31 @@ const HomeSectionsDisplay = () => {
           productsToShow = productsToShow.slice(0, section.limit || 8);
         }
 
-        if (productsToShow.length === 0) return null;
-
-        return (
-          <section key={section.id} className="py-5 sm:py-8 border-b">
+        const sectionContent = productsToShow.length === 0 ? null : (
+          <section className="py-5 sm:py-8 border-b">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <Carousel className="w-full" opts={{ align: "start", containScroll: "trimSnaps" }}>
+              <div className="mb-4 flex items-center justify-between gap-3 sm:mb-6">
                 <h2 className="text-2xl font-bold">{section.title}</h2>
-                {section.type !== "specific_products" && (
-                  <Link href={section.categoryFilter ? `/products?category=${section.categoryFilter}` : "/products"}>
-                    <Button variant="ghost" className="text-primary font-bold">
-                      See all <ArrowRight className="ml-2 w-4 h-4" />
-                    </Button>
-                  </Link>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  {section.type !== "specific_products" && (
+                    <Link href={section.categoryFilter ? `/products?category=${encodeURIComponent(section.categoryFilter)}` : "/products"}>
+                      <Button variant="ghost" className="text-primary font-bold">
+                        See all <ArrowRight className="ml-2 w-4 h-4" />
+                      </Button>
+                    </Link>
+                  )}
+                  {productsToShow.length > 1 && (
+                    <div className="hidden items-center gap-2 sm:flex">
+                      <CarouselPrevious aria-label={`Scroll ${section.title} left`} className="static h-8 w-8 translate-y-0 rounded-full border-slate-200 bg-background text-foreground shadow-sm hover:bg-primary hover:text-primary-foreground" />
+                      <CarouselNext aria-label={`Scroll ${section.title} right`} className="static h-8 w-8 translate-y-0 rounded-full border-slate-200 bg-background text-foreground shadow-sm hover:bg-primary hover:text-primary-foreground" />
+                    </div>
+                  )}
+                </div>
               </div>
-              <Carousel className="w-full">
                 <CarouselContent className="-ml-4">
                   {productsToShow.map((product: any) => (
-                    <CarouselItem key={product.id} className="pl-4 basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+                    <CarouselItem key={product.id} className="pl-4 basis-[58%] min-[480px]:basis-[40%] md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
                       <ProductCard product={product} />
                     </CarouselItem>
                   ))}
@@ -1471,6 +1508,13 @@ const HomeSectionsDisplay = () => {
               </Carousel>
             </div>
           </section>
+        );
+
+        return (
+          <Fragment key={section.id}>
+            {sectionContent}
+            {index === promoAfterIndex && <FeaturedPosterMarquee />}
+          </Fragment>
         );
       })}
     </>
@@ -1557,7 +1601,6 @@ export default function Home() {
 
         <HomeHero />
         <TrustBar />
-        <AirPodsPromotions />
         <HomeSectionsDisplay />
         <TopDeals />
         <MaximizeSavings />

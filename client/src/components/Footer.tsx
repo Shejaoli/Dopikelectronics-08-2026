@@ -1,128 +1,91 @@
-import { Facebook, Instagram, Twitter, MapPin, Phone, Mail, MessageCircle, PhoneCall } from "lucide-react";
-import { SiWhatsapp } from "react-icons/si";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowUpRight, Clock3, Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
+import { SiInstagram, SiWhatsapp } from "react-icons/si";
 import { Link } from "wouter";
 
+const linkClass = "text-sm text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 rounded-sm";
+
 export function Footer() {
+  const reduceMotion = useReducedMotion();
   const whatsappUrl = `https://wa.me/250783562143?text=${encodeURIComponent("Hello DOPIK, I have a question about your products.")}`;
 
   return (
-    <footer className="border-t border-border bg-card pt-20 pb-12">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-16 md:grid-cols-2 lg:grid-cols-4">
-          
-          {/* Brand & Mission */}
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-2xl font-bold text-foreground tracking-tighter">
-                DOPIK <span className="text-primary">ELECTRONICS</span>
-              </h3>
-              <p className="text-sm text-muted-foreground/80 leading-relaxed">
-                Where Gadgets Meet Great Deals. Your premium destination for the latest certified electronics in Kigali, Rwanda.
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <a href="https://instagram.com/dopik.electronics" target="_blank" className="rounded-full bg-accent/50 p-2.5 text-foreground hover:bg-primary hover:text-primary-foreground transition-all hover:scale-110">
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a href="#" className="rounded-full bg-accent/50 p-2.5 text-foreground hover:bg-primary hover:text-primary-foreground transition-all hover:scale-110">
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a href="#" className="rounded-full bg-accent/50 p-2.5 text-foreground hover:bg-primary hover:text-primary-foreground transition-all hover:scale-110">
-                <Twitter className="h-5 w-5" />
-              </a>
-            </div>
-          </div>
+    <footer className="relative isolate overflow-hidden bg-[#071a35] text-white">
+      <motion.div
+        aria-hidden="true"
+        className="footer-store-reveal absolute inset-0 z-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/images/dopik-store-footer.webp')" }}
+        initial={reduceMotion ? false : { clipPath: "inset(100% 0 0 0)" }}
+        whileInView={{ clipPath: "inset(0% 0 0 0)" }}
+        viewport={{ once: true, amount: 0.08 }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 1.8, ease: [0.22, 1, 0.36, 1] }}
+      />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-[#071a35]/88 via-[#071a35]/85 to-[#06152b]/95 backdrop-blur-[2px]" />
 
-          {/* Quick Navigation */}
-          <div>
-            <h4 className="mb-6 text-sm font-bold uppercase tracking-widest text-foreground">Explore</h4>
+      <div className="relative z-10 mx-auto max-w-7xl px-5 pb-7 pt-12 sm:px-8 sm:pt-16 lg:px-10">
+        <div className="mb-12 flex flex-col gap-6 border-b border-white/15 pb-9 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-xl">
+            <div className="mb-4 flex items-center gap-3">
+              <img src="/dopik-logo.png" alt="" width="40" height="40" className="h-10 w-10 rounded-xl bg-white p-1 object-contain" />
+              <span className="text-sm font-black tracking-[0.14em]">DOPIK <span className="text-yellow-400">ELECTRONICS</span></span>
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Great technology, trusted in Kigali.</h2>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-white/75">Shop certified electronics with local support, reliable delivery, and warranty care in Rwanda.</p>
+          </div>
+          <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-yellow-400 px-5 text-sm font-bold text-slate-950 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+            <SiWhatsapp className="h-4 w-4" /> Chat with our team <ArrowUpRight className="h-4 w-4" />
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 gap-10 border-b border-white/15 pb-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+          <nav aria-label="Explore Dopik">
+            <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">Explore</h3>
             <ul className="space-y-3">
-              <li><Link href="/"><span className="cursor-pointer text-sm text-muted-foreground hover:text-primary transition-colors">Home</span></Link></li>
-              <li><Link href="/shop"><span className="cursor-pointer text-sm text-muted-foreground hover:text-primary transition-colors">Shop All Products</span></Link></li>
-              <li><Link href="/deals"><span className="cursor-pointer text-sm text-muted-foreground hover:text-primary transition-colors">Hot Deals</span></Link></li>
-              <li><Link href="/about"><span className="cursor-pointer text-sm text-muted-foreground hover:text-primary transition-colors">Our Story</span></Link></li>
-              <li><Link href="/contact"><span className="cursor-pointer text-sm text-muted-foreground hover:text-primary transition-colors">Customer Support</span></Link></li>
+              <li><Link href="/" className={linkClass}>Home</Link></li>
+              <li><Link href="/shop" className={linkClass}>Shop all products</Link></li>
+              <li><Link href="/deals" className={linkClass}>Hot deals</Link></li>
+              <li><Link href="/about" className={linkClass}>Our story</Link></li>
+              <li><Link href="/contact" className={linkClass}>Customer support</Link></li>
+            </ul>
+          </nav>
+
+          <div>
+            <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">Visit us</h3>
+            <a href="https://maps.google.com/?q=TCB+Building+Kigali+Rwanda" target="_blank" rel="noopener noreferrer" className="group flex items-start gap-3 text-sm text-white/75 transition hover:text-white">
+              <span className="mt-0.5 rounded-lg bg-white/10 p-2 text-sky-300 group-hover:bg-white/15"><MapPin className="h-4 w-4" /></span>
+              <span><strong className="block font-semibold text-white">Dopik Electronics</strong><span className="mt-1 block leading-5">TCB Building, KN 48 St<br />Kigali, Rwanda</span></span>
+            </a>
+            <a href="https://instagram.com/dopik.electronics" target="_blank" rel="noopener noreferrer" aria-label="Dopik Electronics on Instagram" className="mt-5 inline-flex items-center gap-2 text-sm text-white/70 transition hover:text-white">
+              <SiInstagram className="h-4 w-4" /> @dopik.electronics <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+          </div>
+
+          <div>
+            <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">Contact</h3>
+            <ul className="space-y-4 text-sm text-white/75">
+              <li className="flex items-start gap-3"><span className="rounded-lg bg-white/10 p-2 text-emerald-300"><SiWhatsapp className="h-4 w-4" /></span><span><a href="https://wa.me/250783562143" target="_blank" rel="noopener noreferrer" className="block hover:text-white">+250 783 562 143</a><a href="https://wa.me/250789527746" target="_blank" rel="noopener noreferrer" className="mt-1 block hover:text-white">+250 789 527 746</a></span></li>
+              <li className="flex items-start gap-3"><span className="rounded-lg bg-white/10 p-2 text-sky-300"><Phone className="h-4 w-4" /></span><span><a href="tel:+250783562143" className="block hover:text-white">Call +250 783 562 143</a><a href="tel:+250789527746" className="mt-1 block hover:text-white">Call +250 789 527 746</a></span></li>
+              <li className="flex items-start gap-3"><span className="rounded-lg bg-white/10 p-2 text-violet-300"><Mail className="h-4 w-4" /></span><a href="mailto:dopikelectronics@gmail.com" className="break-all pt-2 hover:text-white">dopikelectronics@gmail.com</a></li>
             </ul>
           </div>
 
-          {/* Direct Contact & Location */}
           <div>
-            <h4 className="mb-6 text-sm font-bold uppercase tracking-widest text-foreground">Visit & Contact</h4>
-            <ul className="space-y-6">
-              <li className="flex items-start gap-4 group">
-                <div className="mt-1 rounded-full bg-primary/10 p-2 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <MapPin className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-foreground">Physical Store</span>
-                  <span className="text-xs text-muted-foreground leading-relaxed">KN 48 St, Kigali, Rwanda<br/>(3335+6Q Kigali)</span>
-                </div>
-              </li>
-              <li className="flex items-start gap-4 group">
-                <div className="mt-1 rounded-full bg-green-500/10 p-2 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
-                  <SiWhatsapp className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-foreground">WhatsApp Sales</span>
-                  <a href={whatsappUrl} target="_blank" className="text-xs text-muted-foreground hover:text-green-600 transition-colors">
-                    +250 783 562 143
-                  </a>
-                  <a href={`https://wa.me/250789527746?text=${encodeURIComponent("Hello DOPIK, I have a question about your products.")}`} target="_blank" className="text-xs text-muted-foreground hover:text-green-600 transition-colors">
-                    +250 789 527 746
-                  </a>
-                </div>
-              </li>
-              <li className="flex items-start gap-4 group">
-                <div className="mt-1 rounded-full bg-blue-500/10 p-2 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                  <PhoneCall className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-foreground">Call Us</span>
-                  <a href="tel:+250783562143" className="text-xs text-muted-foreground hover:text-blue-600 transition-colors">+250 783 562 143</a>
-                  <a href="tel:+250789527746" className="text-xs text-muted-foreground hover:text-blue-600 transition-colors">+250 789 527 746</a>
-                </div>
-              </li>
-              <li className="flex items-start gap-4 group">
-                <div className="mt-1 rounded-full bg-primary/10 p-2 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <Mail className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-foreground">Email Inquiry</span>
-                  <span className="text-xs text-muted-foreground truncate">dopikelectronics@gmail.com</span>
-                </div>
-              </li>
-            </ul>
-          </div>
-
-          {/* Shop Hours */}
-          <div>
-            <h4 className="mb-6 text-sm font-bold uppercase tracking-widest text-foreground">Store Hours</h4>
-            <div className="rounded-2xl bg-accent/30 p-5 space-y-3">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground font-medium">Mon - Fri:</span>
-                <span className="text-foreground font-bold">8:00 AM - 9:00 PM</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground font-medium">Saturday:</span>
-                <span className="text-foreground font-bold">9:00 AM - 8:00 PM</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground font-medium">Sunday:</span>
-                <span className="text-foreground font-bold text-red-500">Closed</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground/60 pt-2 border-t border-border mt-2">
-                *Times are in CAT (GMT+2)
-              </p>
+            <h3 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-yellow-300"><Clock3 className="h-4 w-4" /> Store hours</h3>
+            <div className="rounded-2xl border border-white/15 bg-slate-950/25 p-4 backdrop-blur-sm">
+              <div className="flex justify-between gap-3 py-2 text-sm"><span className="text-white/65">Mon – Fri</span><span className="font-semibold">8:00 AM – 9:00 PM</span></div>
+              <div className="flex justify-between gap-3 border-t border-white/10 py-2 text-sm"><span className="text-white/65">Saturday</span><span className="font-semibold">9:00 AM – 8:00 PM</span></div>
+              <div className="flex justify-between gap-3 border-t border-white/10 py-2 text-sm"><span className="text-white/65">Sunday</span><span className="font-semibold text-rose-300">Closed</span></div>
+              <p className="mt-1 border-t border-white/10 pt-3 text-xs text-white/55">Local time: CAT (GMT+2)</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-20 border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[11px] text-muted-foreground/50 font-medium">
-          <p>&copy; 2026 DOPIK ELECTRONICS. All rights reserved. Powered by <a href="http://ysota.cloud/" target="_blank" rel="noopener noreferrer" className="font-semibold hover:text-primary transition-colors">YSOTA Cloud</a></p>
-          <div className="flex gap-6">
-            <span className="hover:text-primary cursor-default">Privacy Policy</span>
-            <Link href="/terms" className="transition-colors hover:text-primary">Terms of Service</Link>
-            <span className="hover:text-primary cursor-default tracking-widest uppercase">Shevio</span>
+        <div className="flex flex-col gap-4 pt-6 text-xs text-white/60 sm:flex-row sm:items-center sm:justify-between">
+          <p>© 2026 Dopik Electronics. All rights reserved.</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <Link href="/terms" className={linkClass}>Terms &amp; Privacy</Link>
+            <a href="https://ysota.cloud/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 transition hover:text-white">Powered by <span className="font-semibold text-white">YSOTA Cloud</span><ArrowUpRight className="h-3 w-3" /></a>
+            <span className="inline-flex items-center gap-1.5 text-white/50"><ShieldCheck className="h-3.5 w-3.5" /> Secure shopping</span>
           </div>
         </div>
       </div>

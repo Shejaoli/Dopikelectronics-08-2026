@@ -284,3 +284,31 @@
   animation: marquee 22s linear infinite;
 }
 
+@keyframes promo-marquee-right {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.promo-marquee-track {
+  animation: promo-marquee-right 72s linear infinite;
+  will-change: transform;
+}
+.promo-marquee-viewport:hover .promo-marquee-track,
+.promo-marquee-viewport:focus-within .promo-marquee-track {
+  animation-play-state: paused;
+}
+.promo-marquee-track.promo-marquee-static {
+  animation: none;
+  transform: translateX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .promo-marquee-track { animation: none; transform: translateX(0); }
+}
+
+.footer-store-reveal {
+  background-attachment: fixed;
+  will-change: clip-path;
+}
+@media (max-width: 767px) {
+  .footer-store-reveal { background-attachment: scroll; }
+}
+

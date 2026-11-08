@@ -51,7 +51,7 @@ function ProductPicker({ selectedIds, onChange, allProducts }: {
     }
   };
 
-  const selectAll = () => onChange([...new Set([...selectedIds, ...filtered.map((p: any) => p.id)])]);
+  const selectAll = () => onChange(Array.from(new Set([...selectedIds, ...filtered.map((p: any) => p.id)])));
   const clearAll = () => onChange([]);
 
   return (
@@ -236,7 +236,9 @@ export default function AdminHomeSections() {
       categoryFilter: section.categoryFilter || "",
       limit: section.limit || 8,
       order: section.order || 0,
-      productIds: section.productIds || [],
+      productIds: Array.isArray(section.productIds)
+        ? section.productIds.map(Number).filter((id: number) => Number.isFinite(id))
+        : [],
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });

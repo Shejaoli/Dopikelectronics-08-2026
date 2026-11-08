@@ -314,5 +314,24 @@ export async function notifyNewCustomer(customer: Customer): Promise<void> {
   await Promise.all([
     notifyAdminsByEmail(subject, html),
     notifyAdminsByPush("New customer", `${customer.fullName} just signed up`, "/admin/customers"),
+    sendNewCustomerWelcomeEmail(customer),
   ]);
+}
+
+async function sendNewCustomerWelcomeEmail(customer: Customer): Promise<void> {
+  try {
+    const transport = getCustomerEmailTransport();
+    if (!transport) return;
+    const sender = process.env.CUSTOMER_GMAIL_USER || "dopikelectronics@gmail.com";
+    const name = escapeHtml(customer.fullName || "there");
+    await transport.sendMail({
+      from: sender,
+      to: customer.email,
+      subject: "Welcome to DOPIK Electronics",
+      text: `Hello ${customer.fullName || "there"},\n\nYour DOPIK Electronics customer account is ready. You can sign in with Google any time to view your account and orders.\n\nWelcome to DOPIK Electronics.`,
+      html: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:24px auto;padding:28px;border:1px solid #e5eaf2;border-radius:16px;color:#182230"><h1 style="font-size:22px">Welcome to DOPIK Electronics</h1><p>Hello ${name},</p><p>Your customer account is ready. You can sign in with Google any time to view your account and orders.</p><p>Thank you,<br>DOPIK Electronics</p><a href="https://dopikelectronics.com" style="color:#06f">Visit our store</a></div>`,
+    });
+  } catch (error) {
+    console.error("[notifications] Failed to send new customer welcome email:", error);
+  }
 }

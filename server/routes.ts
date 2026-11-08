@@ -683,6 +683,14 @@ export async function registerRoutes(
     legacyHeaders: false,
   });
 
+  const customerGoogleLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { message: "Too many Google sign-in attempts. Please try again shortly." },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   app.post("/api/customer/register", customerRegisterLimiter, async (req, res) => {
     try {
       const { fullName, email, phone, password } = req.body;
@@ -728,6 +736,85 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Customer login error:", error);
       res.status(500).json({ message: "Login failed." });
+    }
+  });
+
+  app.get("/api/auth/google/config", (req, res) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) return res.status(503).json({ message: "Google sign-in is not configured." });
+
+    const nonce = randomBytes(32).toString("base64url");
+    (req.session as any).googleOneTapNonce = nonce;
+    res.setHeader("Cache-Control", "no-store");
+    req.session.save((error) => {
+      if (error) return res.status(500).json({ message: "Could not start Google sign-in." });
+      res.json({ clientId, nonce });
+    });
+  });
+
+  app.post("/api/customer/google-one-tap", customerGoogleLimiter, async (req, res) => {
+    try {
+      const credential = typeof req.body?.credential === "string" ? req.body.credential : "";
+      const expectedNonce = (req.session as any).googleOneTapNonce as string | undefined;
+      if (!credential || credential.length > 8192 || !expectedNonce) {
+        return res.status(400).json({ message: "Google sign-in has expired. Please try again." });
+      }
+
+      delete (req.session as any).googleOneTapNonce;
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      if (!clientId) return res.status(503).json({ message: "Google sign-in is not configured." });
+      const ticket = await new OAuth2Client(clientId).verifyIdToken({
+        idToken: credential,
+        audience: clientId,
+      });
+      const payload = ticket.getPayload();
+      if (
+        !payload?.sub ||
+        !payload.email ||
+        payload.email_verified !== true ||
+        payload.nonce !== expectedNonce
+      ) {
+        return res.status(401).json({ message: "Google could not verify this sign-in. Please try again." });
+      }
+
+      const googleId = payload.sub;
+      const email = payload.email.toLowerCase();
+      let customer = await storage.getCustomerByGoogleId(googleId);
+      let isNewCustomer = false;
+
+      if (!customer) {
+        customer = await storage.getCustomerByEmail(email);
+        if (customer) {
+          customer = await storage.updateCustomerGoogleId(customer.id, googleId, payload.picture);
+        } else {
+          const passwordHash = await hashPassword(randomBytes(32).toString("hex"));
+          customer = await storage.createCustomer({
+            fullName: payload.name || email.split("@")[0],
+            email,
+            phone: "",
+            passwordHash,
+            googleId,
+            avatar: payload.picture,
+          });
+          isNewCustomer = true;
+        }
+      }
+
+      if (!customer) return res.status(500).json({ message: "Could not load your customer account." });
+
+      const safeCustomer = (({ passwordHash: _passwordHash, ...safe }) => safe)(customer);
+      req.session.regenerate((sessionError) => {
+        if (sessionError) return res.status(500).json({ message: "Could not finish signing in." });
+        req.session.customerId = customer.id;
+        req.session.save((saveError) => {
+          if (saveError) return res.status(500).json({ message: "Could not finish signing in." });
+          if (isNewCustomer) notifyNewCustomer(customer!).catch((error) => console.error("Google new customer notification failed:", error));
+          res.json({ customer: safeCustomer, isNewCustomer });
+        });
+      });
+    } catch (error) {
+      console.error("Google One Tap sign-in error:", error);
+      res.status(401).json({ message: "Google sign-in failed. Please try again." });
     }
   });
 
@@ -871,6 +958,7 @@ export async function registerRoutes(
 
       // Find by googleId first
       let customer = await storage.getCustomerByGoogleId(googleId);
+      let isNewCustomer = false;
       if (!customer) {
         // Find by email, link Google account
         customer = await storage.getCustomerByEmail(email);
@@ -887,10 +975,12 @@ export async function registerRoutes(
             googleId,
             avatar: picture,
           });
+          isNewCustomer = true;
         }
       }
 
       req.session.customerId = customer.id;
+      if (isNewCustomer) notifyNewCustomer(customer).catch((err) => console.error("Google OAuth new customer notification failed:", err));
       const redirectTo = (req.session as any).oauthRedirect || "/";
       delete (req.session as any).oauthRedirect;
       res.redirect(redirectTo);

@@ -17,10 +17,13 @@ app.use(
       directives: {
         // Allow the delivery dialog's OpenStreetMap preview while keeping all
         // other embedded origins blocked by the default Helmet policy.
-        frameSrc: ["'self'", "https://www.openstreetmap.org"],
+        frameSrc: ["'self'", "https://www.openstreetmap.org", "https://accounts.google.com/gsi/"],
+        connectSrc: ["'self'", "https://accounts.google.com/gsi/"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https:", "https://accounts.google.com/gsi/style"],
         scriptSrc: [
           "'self'",
           "https://www.googletagmanager.com",
+          "https://accounts.google.com/gsi/client",
           ...(process.env.NODE_ENV !== "production" ? ["'unsafe-inline'"] : []),
         ],
       },
