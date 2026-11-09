@@ -341,7 +341,7 @@ export default function ProductDetails() {
             <li aria-current="page" className="min-w-0 max-w-[45vw] truncate font-semibold text-foreground sm:max-w-[360px]">{product.name}</li>
           </ol>
           <span className="sr-only">You are viewing {product.name} in {categoryLabel}.</span>
-        </div>
+        </nav>
 
         {/* ===== DESKTOP PRODUCT TOP SECTION ===== */}
         <div className="hidden md:grid md:grid-cols-12 md:gap-6 items-start">
