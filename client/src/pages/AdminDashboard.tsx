@@ -82,6 +82,13 @@ const NAV_GROUPS = [
   { id: "Customers", items: [{ id: "Customers", label: "Customers", icon: Users }, { id: "Reviews", label: "Reviews", icon: Star }] },
   { id: "Users", items: [{ id: "Users", label: "Users", icon: UserRound }, { id: "Audit Log", label: "Audit Log", icon: History }] },
 ];
+const EDITOR_PRIMARY_TABS = [
+  { id: "Dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "Orders", label: "Orders", icon: ShoppingCart },
+  { id: "Hot Deals", label: "Today's Top Deals", icon: Flame },
+  { id: "Videos", label: "Promo Videos", icon: Film },
+  { id: "Reviews", label: "Reviews", icon: Star },
+];
 
 function StatCard({ title, value, icon: Icon, sub, accent, onClick, trend }: any) {
   return (
@@ -367,6 +374,8 @@ export default function AdminDashboard() {
     ...NAV_GROUPS.flatMap(group => group.items),
     { id: "Settings", label: "Settings", icon: Settings },
   ];
+  const isEditor = adminUser?.role === "editor";
+  const editorMorePages = pageOptions.filter(page => !EDITOR_PRIMARY_TABS.some(tab => tab.id === page.id));
   const channelValues = new Map((dash?.channelSales || []).map((channel: any) => [String(channel.channel).toLowerCase(), Number(channel.orders)]));
   const channelColors: Record<string, string> = { Store: "#6f6af8", Instagram: "#ff0090", WhatsApp: "#00c5a4", TikTok: "#242331", Facebook: "#5278d8", Website: "#ffb822" };
   const channelChartData = Object.keys(channelColors).map(channel => {
@@ -380,6 +389,28 @@ export default function AdminDashboard() {
 
   return (
     <div className="admin-dashboard flex min-h-screen flex-col overflow-hidden bg-[#eef4fc] text-[#48465b]">
+      {isEditor ? (
+      <header className="relative z-30 flex h-[70px] shrink-0 items-center justify-between border-b border-[#e5e8f0] bg-white px-4 shadow-[0_4px_18px_rgba(56,76,112,0.08)] md:px-8">
+        <div className="flex min-w-0 items-center gap-4 md:gap-6">
+          <a href="/xdopik-portal" className="flex shrink-0 items-center gap-2.5" aria-label="Dopik editor home">
+            <img src="/dopik-logo.png" alt="" className="h-9 w-9 object-contain" />
+            <span className="leading-tight"><strong className="block text-sm font-black tracking-tight text-[#242331]">DOPIK</strong><small className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6f6af8]">Editor</small></span>
+          </a>
+          <div className="hidden h-8 w-px bg-[#e7e8f0] sm:block" />
+          <div className="hidden min-w-0 sm:block"><p className="truncate text-sm font-bold text-[#242331]">{activeTab === "Hot Deals" ? "Today's Top Deals" : activeTab === "Videos" ? "Promo Videos" : activeTab}</p><p className="text-[10px] text-[#a1a8c3]">Dopik Electronics · Editor workspace</p></div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 md:flex">
+            <button onClick={() => setHeaderSearchOpen(value => !value)} title="Search editor pages" aria-label="Search editor pages" className="admin-icon-tile bg-[#f1efff] text-[#6f6af8]"><SearchIcon className="h-[18px] w-[18px]" /></button>
+            <button onClick={() => { queryClient.invalidateQueries({ queryKey: ["/api/admin/dashboard"] }); queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] }); queryClient.invalidateQueries({ queryKey: ["/api/admin/orders"] }); }} title="Refresh dashboard data" aria-label="Refresh dashboard data" className="inline-flex h-9 items-center gap-2 rounded-md border border-[#e3e7f0] bg-white px-3 text-xs font-semibold text-[#656b80] hover:border-[#6f6af8] hover:text-[#6f6af8]"><RefreshCw className="h-3.5 w-3.5" />Refresh</button>
+            <a href="/" target="_blank" rel="noreferrer" className="inline-flex h-9 items-center rounded-md border border-[#e3e7f0] bg-white px-3 text-xs font-semibold text-[#656b80] hover:border-[#6f6af8] hover:text-[#6f6af8]">View Store</a>
+          </div>
+          <DropdownMenu><DropdownMenuTrigger asChild><button aria-label="Editor account menu" className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-[#6f6af8] text-xs font-bold text-white shadow-sm">ED</button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white"><DropdownMenuLabel>{adminUser?.username || "Editor"}</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onSelect={handleLogout} className="text-rose-600"><LogOut className="h-4 w-4" />Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <div className="md:hidden"><DropdownMenu><DropdownMenuTrigger asChild><button aria-label="Open editor pages" className="admin-icon-tile h-9 w-9 bg-[#e8faf6] text-[#00bfa3]"><MenuIcon className="h-4 w-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="max-h-[80vh] overflow-y-auto bg-white"><DropdownMenuLabel>Editor pages</DropdownMenuLabel>{pageOptions.map(page => <DropdownMenuItem key={page.id} onSelect={() => choosePage(page.id)}><page.icon className="h-4 w-4" />{page.label}</DropdownMenuItem>)}<DropdownMenuSeparator /><DropdownMenuItem onSelect={handleLogout} className="text-rose-600"><LogOut className="h-4 w-4" />Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+        </div>
+        {headerSearchOpen && <div className="absolute left-3 right-3 top-[62px] z-50 rounded-md border border-[#e3e7f0] bg-white p-2 shadow-xl sm:left-[235px] sm:right-auto sm:w-[360px]"><input autoFocus value={headerSearch} onChange={event => setHeaderSearch(event.target.value)} placeholder="Search editor pages..." className="h-10 w-full rounded border border-[#e3e7f0] px-3 text-sm outline-none focus:border-[#6f6af8]" />{headerSearch && <div className="mt-1 max-h-56 overflow-y-auto">{pageOptions.filter(page => page.label.toLowerCase().includes(headerSearch.toLowerCase())).map(page => <button key={page.id} onClick={() => { choosePage(page.id); setHeaderSearch(""); setHeaderSearchOpen(false); }} className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-[#f5f6fb]"><page.icon className="h-4 w-4 text-[#6f6af8]" />{page.label}</button>)}</div>}</div>}
+      </header>
+      ) : (
       <header className="relative z-30 flex h-[70px] shrink-0 items-center justify-between bg-white px-4 shadow-[0_4px_18px_rgba(56,76,112,0.08)] md:px-8">
         <div className="flex min-w-0 items-center gap-4">
           <a href="/xdopik-portal" className="flex shrink-0 items-center gap-2.5" aria-label="Dopik admin home">
@@ -412,7 +443,14 @@ export default function AdminDashboard() {
           <DropdownMenu><DropdownMenuTrigger asChild><button aria-label="Open admin menu" className="admin-icon-tile h-9 w-9 bg-[#e8faf6] text-[#00bfa3]"><MenuIcon className="h-4 w-4" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="max-h-[80vh] overflow-y-auto bg-white">{pageOptions.map(page => <DropdownMenuItem key={page.id} onSelect={() => choosePage(page.id)}><page.icon className="h-4 w-4" />{page.label}</DropdownMenuItem>)}<DropdownMenuSeparator /><DropdownMenuItem onSelect={handleLogout} className="text-rose-600"><LogOut className="h-4 w-4" />Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </header>
+      )}
 
+      {isEditor ? (
+      <nav aria-label="Editor sections" className="relative z-20 flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[#e3e7f0] bg-[#e7f3fc] px-3 pt-3 md:px-8">
+        {EDITOR_PRIMARY_TABS.map(tab => <button key={tab.id} onClick={() => choosePage(tab.id)} aria-current={activeTab === tab.id ? "page" : undefined} className={cn("flex h-12 shrink-0 items-center gap-2 px-4 text-xs font-semibold transition-colors", activeTab === tab.id ? "rounded-t-md border-b-2 border-[#6f6af8] bg-white text-[#6f6af8]" : "bg-[#deeffb] text-[#737b99] hover:bg-white/70")}><tab.icon className="h-4 w-4" />{tab.label}{tab.id === "Reviews" && pendingReviews > 0 && <span className="rounded-full bg-[#fff3df] px-2 py-0.5 text-[10px] text-[#c48300]">{pendingReviews}</span>}</button>)}
+        <DropdownMenu><DropdownMenuTrigger asChild><button aria-current={editorMorePages.some(page => page.id === activeTab) ? "page" : undefined} className={cn("flex h-12 shrink-0 items-center gap-2 px-4 text-xs font-semibold transition-colors", editorMorePages.some(page => page.id === activeTab) ? "rounded-t-md border-b-2 border-[#6f6af8] bg-white text-[#6f6af8]" : "bg-[#deeffb] text-[#737b99] hover:bg-white/70")}><MoreHorizontal className="h-4 w-4" />More pages<ChevronDown className="h-3 w-3" /></button></DropdownMenuTrigger><DropdownMenuContent align="start" className="max-h-[70vh] overflow-y-auto bg-white"><DropdownMenuLabel>Editor pages</DropdownMenuLabel><DropdownMenuSeparator />{editorMorePages.map(page => <DropdownMenuItem key={page.id} onSelect={() => choosePage(page.id)}><page.icon className="h-4 w-4 text-[#6f6af8]" />{page.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>
+      </nav>
+      ) : (
       <nav aria-label="Admin sections" className="relative z-20 flex shrink-0 items-center gap-1 overflow-x-auto bg-[#e7f3fc] px-3 pt-3 md:px-8">
         <button onClick={() => choosePage("Dashboard")} aria-current={activeTab === "Dashboard" ? "page" : undefined} className={cn("flex h-12 shrink-0 items-center gap-2 px-4 text-xs font-semibold uppercase tracking-wide transition-colors", activeTab === "Dashboard" ? "rounded-t bg-white text-[#6f6af8]" : "bg-[#deeffb] text-[#737b99] hover:bg-white/70")}><LayoutDashboard className="h-4 w-4" />Dashboard</button>
         {NAV_GROUPS.map(group => {
@@ -422,6 +460,7 @@ export default function AdminDashboard() {
         })}
         {activeTab === "Settings" && <button className="flex h-12 shrink-0 items-center gap-2 rounded-t bg-white px-4 text-xs font-semibold uppercase tracking-wide text-[#6f6af8]"><Settings className="h-4 w-4" />Settings</button>}
       </nav>
+      )}
 
       <main className="relative flex-1 overflow-y-auto px-3 pb-20 pt-0 md:px-8">
         <div className="mx-auto min-h-full max-w-[1600px] bg-white px-3 pb-8 pt-4 shadow-[0_8px_28px_rgba(56,76,112,0.05)] md:px-6 md:pt-5">
