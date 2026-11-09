@@ -141,7 +141,6 @@ const HomeHero = () => {
               exit={prefersReducedMotion ? undefined : { opacity: 0, x: -24 }}
               transition={{ duration: 0.55, ease: "easeInOut" }}
               className="block h-full w-full object-cover object-center"
-              {...getResponsiveImageProps(slides[activeSlide].src, "100vw")}
             />
           </AnimatePresence>
         </Link>

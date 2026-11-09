@@ -6,7 +6,7 @@ import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Check, Shield, Truck, Share2, ShoppingBag, Minus, Plus as PlusIcon, ArrowRight, Star, Send, Lock, RotateCcw, BadgeCheck, Heart } from "lucide-react";
+import { ArrowLeft, Check, Shield, Truck, Share2, ShoppingBag, Minus, Plus as PlusIcon, ArrowRight, Star, Send, Lock, RotateCcw, BadgeCheck, Heart, ChevronRight } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
@@ -15,6 +15,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { getProductPricing } from "@shared/product-pricing";
+import { buildProductSeoTitle } from "@/lib/product-seo";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -36,7 +37,7 @@ export default function ProductDetails() {
 
   const variations = (product?.variations as {
     storage?: { option: string; priceOffset: number; stock?: number }[];
-    colors?: { name: string; value: string; stock?: number }[];
+    colors?: { name: string; value: string; stock?: number; imageUrl?: string }[];
   }) || {};
 
   const storageOptions = variations.storage || [];
@@ -82,6 +83,13 @@ export default function ProductDetails() {
     }
   }, [product]);
 
+  useEffect(() => {
+    if (!product || !selectedColor) return;
+    const colors = (product.variations as { colors?: { name: string; imageUrl?: string }[] } | null)?.colors || [];
+    const colorImage = colors.find((color) => color.name === selectedColor)?.imageUrl;
+    setSelectedImage(colorImage || product.imageUrl);
+  }, [product, selectedColor]);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -116,21 +124,25 @@ export default function ProductDetails() {
 
   const productReviews = reviewData?.reviews || [];
   const reviewStats = reviewData?.stats || { averageRating: 0, reviewCount: 0 };
+  const categoryLabel = product?.category || "Products";
+  const categoryHref = `/shop?category=${encodeURIComponent(categoryLabel)}`;
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     "itemListElement": [
       { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://dopikelectronics.com" },
-      { "@type": "ListItem", "position": 2, "name": product?.category || "Products", "item": `https://dopikelectronics.com/shop?category=${encodeURIComponent(product?.category || '')}` },
-      { "@type": "ListItem", "position": 3, "name": product?.name || "Product", "item": `https://dopikelectronics.com/product/${product?.slug}` }
+      { "@type": "ListItem", "position": 2, "name": "Electronics", "item": "https://dopikelectronics.com/shop" },
+      { "@type": "ListItem", "position": 3, "name": categoryLabel, "item": `https://dopikelectronics.com${categoryHref}` },
+      { "@type": "ListItem", "position": 4, "name": product?.name || "Product", "item": `https://dopikelectronics.com/product/${product?.slug}` }
     ]
   };
 
   useEffect(() => {
     if (!product) return;
     const desc = product.description.substring(0, 160);
-    document.title = `${product.name} - Buy in Rwanda | Dopik Electronics`;
+    const pageTitle = product.metaTitle?.trim() || buildProductSeoTitle(product.name, product.brand, product.category);
+    document.title = pageTitle;
     const setMeta = (name: string, content: string, attr: string = 'name') => {
       let meta = document.querySelector(`meta[${attr}="${name}"]`) as HTMLMetaElement;
       if (!meta) { meta = document.createElement('meta'); meta.setAttribute(attr, name); document.head.appendChild(meta); }
@@ -141,7 +153,7 @@ export default function ProductDetails() {
     const savedKeywords = (product.searchKeywords as string[] | null) || [];
     setMeta('keywords', [...new Set([...baseKeywords, ...savedKeywords])].join(", "));
     setMeta('robots', 'index, follow');
-    setMeta('og:title', product.name, 'property');
+    setMeta('og:title', pageTitle, 'property');
     setMeta('og:description', desc, 'property');
     setMeta('og:image', product.imageUrl, 'property');
     setMeta('og:url', window.location.href, 'property');
@@ -149,7 +161,7 @@ export default function ProductDetails() {
     setMeta('og:price:amount', getProductPricing(product).salePrice.toString(), 'property');
     setMeta('og:price:currency', 'RWF', 'property');
     setMeta('twitter:card', 'summary_large_image');
-    setMeta('twitter:title', product.name);
+    setMeta('twitter:title', pageTitle);
     setMeta('twitter:description', desc);
     setMeta('twitter:image', product.imageUrl);
   }, [product]);
@@ -164,6 +176,16 @@ export default function ProductDetails() {
 
   const currentStorage = storageOptions.find(s => s.option === selectedStorage);
   const currentColor = colorOptions.find(c => c.name === selectedColor);
+  const galleryImages = Array.from(new Set([
+    currentColor?.imageUrl,
+    product.imageUrl,
+    ...(product.additionalImages || []),
+  ].filter((image): image is string => Boolean(image))));
+  const selectColor = (color: (typeof colorOptions)[number]) => {
+    if (color.stock === 0) return;
+    setSelectedColor(color.name);
+    setSelectedImage(color.imageUrl || product.imageUrl);
+  };
   const productPricing = getProductPricing(product, currentStorage?.priceOffset || 0);
   const isOutOfStock = (currentStorage?.stock === 0) || (currentColor?.stock === 0);
   const maxStock = Math.min(currentStorage?.stock ?? 99, currentColor?.stock ?? 99);
@@ -173,7 +195,7 @@ export default function ProductDetails() {
     const cartItem = {
       productId: product.id, name: product.name,
       price: productPricing.salePrice, originalPrice: productPricing.hasDiscount ? productPricing.regularPrice : undefined, totalPrice: itemTotalPrice,
-      quantity, storage: selectedStorage, color: selectedColor, imageUrl: product.imageUrl,
+      quantity, storage: selectedStorage, color: selectedColor, imageUrl: selectedImage || product.imageUrl,
     };
     const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");
     const matchIndex = existingCart.findIndex((item: any) =>
@@ -200,7 +222,7 @@ export default function ProductDetails() {
     const cartItem = {
       productId: product.id, name: product.name,
       price: productPricing.salePrice, originalPrice: productPricing.hasDiscount ? productPricing.regularPrice : undefined, totalPrice: itemTotalPrice,
-      quantity, storage: selectedStorage, color: selectedColor, imageUrl: product.imageUrl,
+      quantity, storage: selectedStorage, color: selectedColor, imageUrl: selectedImage || product.imageUrl,
     };
     // Buy Now takes this single item straight to checkout (replaces cart, matching "buy now" intent)
     localStorage.setItem("cart", JSON.stringify([cartItem]));
@@ -236,16 +258,16 @@ export default function ProductDetails() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Helmet>
-        <title>{product.name} - Buy in Rwanda | Dopik Electronics</title>
+        <title>{product.metaTitle?.trim() || buildProductSeoTitle(product.name, product.brand, product.category)}</title>
         <meta name="description" content={`Buy ${product.name} in Rwanda. Certified refurbished, 12-month warranty, fast delivery in Kigali. ${product.description.substring(0, 100)}...`} />
         <meta name="keywords" content={[product.name, product.brand, product.category, "buy in Rwanda", "Kigali electronics", ...((product.searchKeywords as string[] | null) || [])].join(", ")} />
-        <meta property="og:title" content={product.name} />
+        <meta property="og:title" content={product.metaTitle?.trim() || buildProductSeoTitle(product.name, product.brand, product.category)} />
         <meta property="og:description" content={product.description.substring(0, 160)} />
         <meta property="og:image" content={product.imageUrl} />
         <meta property="og:url" content={`https://dopikelectronics.com/product/${product.slug}`} />
         <meta property="og:type" content="product" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={product.name} />
+        <meta name="twitter:title" content={product.metaTitle?.trim() || buildProductSeoTitle(product.name, product.brand, product.category)} />
         <meta name="twitter:description" content={product.description.substring(0, 100)} />
         <meta name="twitter:image" content={product.imageUrl} />
         <link rel="canonical" href={`https://dopikelectronics.com/product/${product.slug}`} />
@@ -300,14 +322,25 @@ export default function ProductDetails() {
         )}
       </AnimatePresence>
 
-      <main className="mx-auto max-w-7xl px-2 py-4 sm:px-6 sm:py-6 lg:px-8">
-        {/* Breadcrumb */}
-        <div ref={productTopRef}>
-          <Link href="/shop">
-            <span className="mb-4 inline-flex cursor-pointer items-center text-sm text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Shop
-            </span>
-          </Link>
+      <main className="mx-auto max-w-7xl px-2 py-2 sm:px-6 sm:py-6 lg:px-8">
+        {/* Store location breadcrumb */}
+        <nav ref={productTopRef} aria-label="Breadcrumb" className="mb-2 min-w-0 md:mb-4">
+          <ol className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1 text-xs sm:text-sm">
+            <li className="shrink-0">
+              <Link href="/" className="rounded-sm text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Home</Link>
+            </li>
+            <li aria-hidden="true" className="shrink-0 text-muted-foreground/50"><ChevronRight className="h-3.5 w-3.5" /></li>
+            <li className="shrink-0">
+              <Link href="/shop" className="rounded-sm text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Electronics</Link>
+            </li>
+            <li aria-hidden="true" className="shrink-0 text-muted-foreground/50"><ChevronRight className="h-3.5 w-3.5" /></li>
+            <li className="min-w-0 shrink">
+              <Link href={categoryHref} className="rounded-sm text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{categoryLabel}</Link>
+            </li>
+            <li aria-hidden="true" className="shrink-0 text-muted-foreground/50"><ChevronRight className="h-3.5 w-3.5" /></li>
+            <li aria-current="page" className="min-w-0 max-w-[45vw] truncate font-semibold text-foreground sm:max-w-[360px]">{product.name}</li>
+          </ol>
+          <span className="sr-only">You are viewing {product.name} in {categoryLabel}.</span>
         </div>
 
         {/* ===== DESKTOP PRODUCT TOP SECTION ===== */}
@@ -329,7 +362,7 @@ export default function ProductDetails() {
             </div>
             {/* Thumbnails row */}
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {[product.imageUrl, ...(product.additionalImages || [])].map((img, idx) => (
+              {galleryImages.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(img)}
@@ -435,7 +468,7 @@ export default function ProductDetails() {
                   {colorOptions.map(color => (
                     <button
                       key={color.name}
-                      onClick={() => color.stock !== 0 && setSelectedColor(color.name)}
+                      onClick={() => selectColor(color)}
                       disabled={color.stock === 0}
                       className={`flex flex-col items-center gap-1 p-1 rounded-xl border-2 transition-all w-16 ${
                         selectedColor === color.name ? "border-primary" : "border-border hover:border-primary/50"
@@ -752,12 +785,12 @@ export default function ProductDetails() {
         </div>
 
         {/* ===== MOBILE-ONLY DETAIL LAYOUT ===== */}
-        <div className="md:hidden mt-4 space-y-3 pb-36">
+        <div className="md:hidden mt-1 space-y-2 pb-36">
 
           {/* 1. Title + Rating + Icons */}
           <div>
-            <h1 className="text-[16px] font-bold text-gray-900 dark:text-white leading-snug">{product.name}</h1>
-            <div className="flex items-center justify-between mt-1.5">
+            <h1 className="text-[15px] font-bold text-gray-900 dark:text-white leading-snug">{product.name}</h1>
+            <div className="flex items-center justify-between mt-1">
               <div className="flex items-center gap-1.5">
                 {[1,2,3,4,5].map(i => (
                   <Star key={i} className={`h-3.5 w-3.5 ${i <= Math.round(reviewStats.averageRating || 4) ? "fill-[#FFC107] text-[#FFC107]" : "text-gray-300"}`} />
@@ -779,12 +812,12 @@ export default function ProductDetails() {
                 </button>
               </div>
             </div>
-            <div className="mt-2 h-px bg-gray-200 dark:bg-gray-700" />
+            <div className="mt-1.5 h-px bg-gray-200 dark:bg-gray-700" />
           </div>
 
           {/* Mobile Image Gallery */}
-          <div className="flex flex-col gap-3">
-            <div className="aspect-square overflow-hidden rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="flex h-[min(58vw,250px)] w-full items-center justify-center overflow-hidden rounded-2xl border border-border bg-card p-2">
               <motion.img
                 key={selectedImage}
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -795,35 +828,30 @@ export default function ProductDetails() {
                 className="h-full w-full object-contain"
               />
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {[product.imageUrl, ...(product.additionalImages || [])].map((img, idx) => (
+            <div className="flex min-h-4 items-center justify-center gap-1.5" aria-label="Product image selector">
+              {galleryImages.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(img)}
-                  className={`h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all hover:scale-105 ${selectedImage === img ? "border-primary shadow-md" : "border-border opacity-70 hover:opacity-100"}`}
+                  aria-label={`Show product image ${idx + 1} of ${galleryImages.length}`}
+                  aria-current={selectedImage === img ? "true" : undefined}
+                  className={`h-2 w-2 rounded-full transition-all ${selectedImage === img ? "w-5 bg-primary" : "bg-muted-foreground/35 hover:bg-muted-foreground/60"}`}
                 >
-                  <img src={img} alt={`${product.name} thumbnail ${idx}`} className="h-full w-full object-cover" />
+                  <span className="sr-only">Image {idx + 1}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 2. Price Section */}
-          <div className="pdp-price py-1">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-[22px] font-black text-gray-900 dark:text-white tracking-tight">{formatPrice(totalPrice)}</span>
-              <span className="text-[11px] text-gray-400 font-normal">Incl. VAT</span>
-            </div>
-            {productPricing.hasDiscount && (
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[12px] text-gray-400 line-through">{formatPrice(productPricing.regularPrice * quantity)}</span>
-                <span className="text-[10px] font-black text-white bg-green-600 px-2 py-0.5 rounded-full">{productPricing.discount}% OFF</span>
-              </div>
-            )}
-            {isOutOfStock && (
-              <span className="inline-block mt-1 text-[11px] font-semibold text-red-500 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-full">Out of Stock</span>
-            )}
+          {/* Price follows the image gallery on mobile. */}
+          <div className="pdp-price flex items-baseline gap-2 py-0.5">
+            <span className="text-[20px] font-black text-gray-900 dark:text-white tracking-tight">{formatPrice(totalPrice)}</span>
+            <span className="text-[10px] text-gray-400 font-normal">Incl. VAT</span>
+            {productPricing.hasDiscount && <span className="text-[11px] text-gray-400 line-through">{formatPrice(productPricing.regularPrice * quantity)}</span>}
+            {productPricing.hasDiscount && <span className="text-[9px] font-black text-white bg-green-600 px-2 py-0.5 rounded-full">{productPricing.discount}% OFF</span>}
+            {isOutOfStock && <span className="text-[10px] font-semibold text-red-500">Out of Stock</span>}
           </div>
+
           <div className="h-px bg-gray-200 dark:bg-gray-700" />
 
           {/* 3. Storage / Memory Selector */}
@@ -861,7 +889,7 @@ export default function ProductDetails() {
                 {colorOptions.map(color => (
                   <button
                     key={color.name}
-                    onClick={() => color.stock !== 0 && setSelectedColor(color.name)}
+                    onClick={() => selectColor(color)}
                     disabled={color.stock === 0}
                     className={`flex-shrink-0 flex flex-col items-center gap-1 p-1 rounded-xl border-2 transition-all w-[72px] ${
                       selectedColor === color.name ? "border-[#1565C0]" : "border-gray-200 dark:border-gray-600"

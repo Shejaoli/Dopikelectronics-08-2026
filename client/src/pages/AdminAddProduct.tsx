@@ -5,6 +5,7 @@ import { insertProductSchema, type InsertProduct } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { buildProductSeoTitle, getProductSeoHint, getProductSeoQuestion } from "@/lib/product-seo";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,6 +21,7 @@ interface AdminAddProductProps {
 export default function AdminAddProduct({ onBack }: AdminAddProductProps) {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
+  const [seoDetails, setSeoDetails] = useState("");
   const [specEntries, setSpecEntries] = useState<{ key: string; value: string }[]>([]);
   const [customCategory, setCustomCategory] = useState("");
   const [rawCategory, setRawCategory] = useState("");
@@ -62,6 +64,7 @@ export default function AdminAddProduct({ onBack }: AdminAddProductProps) {
     resolver: zodResolver(insertProductSchema),
     defaultValues: {
       name: "",
+      metaTitle: "",
       description: "",
       metaDescription: "",
       price: 0,
@@ -180,6 +183,30 @@ export default function AdminAddProduct({ onBack }: AdminAddProductProps) {
     }
   };
 
+  const handleColorImageUpload = async (index: number, file?: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "File too large", description: "Maximum size is 5MB" });
+      return;
+    }
+    const formData = new FormData();
+    formData.append("images", file);
+    setIsUploading(true);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      const imageUrl = data.url || data.urls?.[0];
+      if (!imageUrl) throw new Error("No image URL returned");
+      form.setValue(`variations.colors.${index}.imageUrl` as any, imageUrl, { shouldDirty: true });
+      toast({ title: "Color image uploaded", description: "This photo is now linked to the selected color." });
+    } catch {
+      toast({ variant: "destructive", title: "Upload failed", description: "Could not upload this color photo." });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const CATEGORIES = [
     "Smartphones",
     "Phones Accessories",
@@ -285,6 +312,34 @@ export default function AdminAddProduct({ onBack }: AdminAddProductProps) {
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            <FormField
+              control={form.control}
+              name="metaTitle"
+              render={({ field }) => {
+                const category = form.watch("category");
+                const suggestion = buildProductSeoTitle(form.watch("name"), form.watch("brand"), category, seoDetails);
+                return (
+                  <FormItem>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <FormLabel>SEO title for Google</FormLabel>
+                      <Button type="button" size="sm" variant="outline" disabled={!suggestion} onClick={() => field.onChange(suggestion)}>
+                        Use suggested title
+                      </Button>
+                    </div>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} maxLength={120} placeholder="Suggested from product details" />
+                    </FormControl>
+                    <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                      <label htmlFor="seo-key-details" className="text-xs font-medium">{getProductSeoQuestion(category)}</label>
+                      <Input id="seo-key-details" value={seoDetails} onChange={(event) => setSeoDetails(event.target.value)} maxLength={60} placeholder="Add a short, accurate detail (optional)" />
+                      <p className="text-xs text-muted-foreground">{getProductSeoHint(category)} The suggestion adds “in Rwanda | Dopik Electronics”; review it before saving.</p>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <FormField
@@ -772,7 +827,7 @@ export default function AdminAddProduct({ onBack }: AdminAddProductProps) {
                     </Button>
                   </div>
                   {colorFields.fields.map((field, index) => (
-                    <div key={field.id} className="flex gap-3 items-end">
+                    <div key={field.id} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_64px_80px_minmax(180px,1.2fr)_40px] gap-3 items-end rounded-lg border p-3">
                       <div className="flex-1 space-y-2">
                         <FormLabel className="text-xs">Color Name</FormLabel>
                         <Input {...form.register(`variations.colors.${index}.name` as any)} placeholder="Space Black" />
@@ -784,6 +839,15 @@ export default function AdminAddProduct({ onBack }: AdminAddProductProps) {
                       <div className="w-20 space-y-2">
                         <FormLabel className="text-xs">Stock</FormLabel>
                         <Input type="number" {...form.register(`variations.colors.${index}.stock` as any, { valueAsNumber: true })} />
+                      </div>
+                      <div className="space-y-2">
+                        <FormLabel className="text-xs">Photo for this color</FormLabel>
+                        <div className="flex items-center gap-2">
+                          {form.watch(`variations.colors.${index}.imageUrl` as any) && (
+                            <img src={form.watch(`variations.colors.${index}.imageUrl` as any)} alt={`${form.watch(`variations.colors.${index}.name` as any) || "Color"} preview`} className="h-10 w-10 rounded border object-contain bg-white" />
+                          )}
+                          <Input type="file" accept="image/*,.heic,.heif" disabled={isUploading} aria-label="Upload photo for this color" onChange={(e) => { void handleColorImageUpload(index, e.target.files?.[0]); e.currentTarget.value = ""; }} className="text-xs" />
+                        </div>
                       </div>
                       <Button type="button" variant="ghost" size="icon" onClick={() => colorFields.remove(index)} className="text-destructive">
                         <Trash2 className="w-4 h-4" />

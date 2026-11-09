@@ -7,6 +7,7 @@ export const products = pgTable("products", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   description: text("description").notNull(),
+  metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
   searchKeywords: text("search_keywords").array().default([]),
   price: integer("price").notNull(), // Store in RWF
@@ -21,7 +22,7 @@ export const products = pgTable("products", {
   specs: jsonb("specs").$type<Record<string, string>>(), // Key-value pairs for specs
   variations: jsonb("variations").$type<{
     storage?: { option: string; priceOffset: number; stock?: number }[];
-    colors?: { name: string; value: string; stock?: number }[];
+    colors?: { name: string; value: string; stock?: number; imageUrl?: string }[];
   }>(),
 });
 
