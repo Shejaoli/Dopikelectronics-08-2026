@@ -140,8 +140,71 @@ const statusColor = (status: string) => {
   return "#ff0090";
 };
 
+function EditorWorkspace({ admin, stats, dash, orders, timeRange, setTimeRange, choosePage, openAddProduct }: any) {
+  const rangeLabel = timeRange === "today" ? "Today" : timeRange === "7days" ? "Last 7 days" : timeRange === "30days" ? "Last 30 days" : "All time";
+  const orderCount = Number(dash?.totalOrders ?? stats?.totalOrders ?? 0);
+  const visitorCount = Number(stats?.totalVisitors || 0);
+  const conversion = visitorCount ? (orderCount / visitorCount) * 100 : 0;
+  const kpis = [
+    { title: "Revenue", value: fmt(stats?.totalRevenue || 0), icon: DollarSign, tint: "bg-violet-50 text-violet-600" },
+    { title: "Orders", value: Number(stats?.totalOrders || 0).toLocaleString(), icon: ShoppingCart, tint: "bg-sky-50 text-sky-600" },
+    { title: "Needs attention", value: Number(stats?.pendingOrders || 0).toLocaleString(), icon: Clock, tint: "bg-amber-50 text-amber-600" },
+    { title: "Store visitors", value: visitorCount.toLocaleString(), icon: Eye, tint: "bg-emerald-50 text-emerald-600" },
+  ];
+  const salesStatus = dash?.statusGroups || [];
+  const sellers = dash?.bestSellers || [];
+
+  return (
+    <div className="space-y-5 md:space-y-6">
+      <section className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-gradient-to-r from-white via-white to-blue-50 p-5 md:flex-row md:items-center md:justify-between md:p-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">Dopik Electronics · Editor workspace</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Welcome{admin?.username ? `, ${admin.username}` : " back"}</h1>
+          <p className="mt-1 text-sm text-slate-500">A quick view of store activity and shortcuts for your daily work.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={openAddProduct} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"><Plus className="h-4 w-4" />Add product</button>
+          <button onClick={() => choosePage("Hot Deals")} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"><Flame className="h-4 w-4" />Manage deals</button>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {kpis.map(({ title, value, icon: Icon, tint }) => <article key={title} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-center justify-between"><span className="text-sm font-medium text-slate-500">{title}</span><span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", tint)}><Icon className="h-4 w-4" /></span></div><strong className="mt-3 block truncate text-xl font-bold text-slate-900">{value}</strong></article>)}
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:col-span-2 md:p-5">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold text-slate-900">Sales overview</h2><p className="mt-1 text-xs text-slate-500">Daily revenue and order activity</p></div><DropdownMenu><DropdownMenuTrigger asChild><button className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-600"><CalendarDays className="h-4 w-4 text-blue-600" />{rangeLabel}<ChevronDown className="h-3.5 w-3.5" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white">{([{ value: "today", label: "Today" }, { value: "7days", label: "Last 7 days" }, { value: "30days", label: "Last 30 days" }, { value: "lifetime", label: "All time" }] as const).map(range => <DropdownMenuItem key={range.value} onSelect={() => setTimeRange(range.value)}>{range.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu></div>
+          <div className="h-[250px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={dash?.chartData || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}><CartesianGrid vertical={false} stroke="#edf1f6" /><XAxis dataKey="date" tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={false} /><YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} tickLine={false} axisLine={false} width={48} /><RechartsTooltip content={<CustomTooltip />} /><Bar dataKey="revenue" name="Sales" fill="#2563eb" radius={[5, 5, 0, 0]} maxBarSize={28} /></BarChart></ResponsiveContainer></div>
+        </article>
+
+        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+          <div className="flex items-start justify-between"><div><h2 className="font-semibold text-slate-900">Order status</h2><p className="mt-1 text-xs text-slate-500">Current period · {orderCount} orders</p></div><button onClick={() => choosePage("Orders")} className="text-xs font-semibold text-blue-600 hover:text-blue-800">View orders <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></button></div>
+          <div className="relative mx-auto mt-2 h-[180px] max-w-[230px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={salesStatus} dataKey="count" nameKey="status" innerRadius={54} outerRadius={76} paddingAngle={3} stroke="none">{salesStatus.map((item: any) => <Cell key={item.status} fill={statusColor(item.status)} />)}</Pie><RechartsTooltip formatter={(value: number) => [value + " orders", "Orders"]} /></PieChart></ResponsiveContainer><div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><strong className="text-2xl text-slate-900">{orderCount}</strong><span className="text-[10px] text-slate-500">total orders</span></div></div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">{salesStatus.map((item: any) => <div key={item.status} className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusColor(item.status) }} />{item.status}<strong className="ml-auto text-slate-800">{item.count}</strong></div>)}</div>
+          <div className="mt-4 rounded-lg bg-slate-50 p-3"><span className="text-xs text-slate-500">Visitor-to-order conversion</span><strong className="float-right text-sm text-slate-900">{conversion.toFixed(2)}%</strong></div>
+        </article>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:col-span-2 md:p-5">
+          <div className="mb-3 flex items-start justify-between"><div><h2 className="font-semibold text-slate-900">Latest orders</h2><p className="mt-1 text-xs text-slate-500">Recent customer activity</p></div><button onClick={() => choosePage("Orders")} className="text-xs font-semibold text-blue-600">See all</button></div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead className="border-b border-slate-100 text-[10px] uppercase tracking-wide text-slate-400"><tr><th className="py-3">Customer</th><th>Item</th><th>Date</th><th>Status</th><th className="text-right">Total</th></tr></thead><tbody className="divide-y divide-slate-100">{orders.slice(0, 5).map((order: any) => <tr key={order.id}><td className="py-3 pr-3"><strong className="block font-semibold text-slate-800">{order.customerName}</strong><span className="text-[10px] text-slate-400">{order.customerPhone}</span></td><td className="max-w-[180px] truncate pr-3 text-slate-600">{order.items?.[0]?.name || "Order item"}</td><td className="whitespace-nowrap text-slate-500">{new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</td><td><span className={cn("rounded-full px-2 py-1 text-[10px] font-semibold capitalize", statusClass(order.status))}>{order.status}</span></td><td className="whitespace-nowrap text-right font-semibold text-slate-800">{fmt(order.totalAmount)}</td></tr>)}</tbody></table>{orders.length === 0 && <p className="py-8 text-center text-sm text-slate-400">New orders will appear here.</p>}</div>
+        </article>
+        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+          <div className="mb-3 flex items-start justify-between"><div><h2 className="font-semibold text-slate-900">Popular products</h2><p className="mt-1 text-xs text-slate-500">Top sellers in this period</p></div><button onClick={() => choosePage("Products")} className="text-xs font-semibold text-blue-600">Catalog</button></div>
+          <div className="space-y-1">{sellers.slice(0, 5).map((product: any, index: number) => <div key={product.productId} className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-600">{index + 1}</span><span className="min-w-0 flex-1"><strong className="block truncate text-xs font-semibold text-slate-800">{product.name}</strong><small className="text-[10px] text-slate-400">{product.category} · {product.units} sold</small></span><strong className="whitespace-nowrap text-[10px] text-slate-700">{fmt(product.sales)}</strong></div>)}{sellers.length === 0 && <p className="py-8 text-center text-sm text-slate-400">Sales data will appear when orders are placed.</p>}</div>
+        </article>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">{[{ label: "Products", icon: Package, page: "Products", tint: "text-blue-600 bg-blue-50" }, { label: "Homepage sections", icon: Layers, page: "Home Sections", tint: "text-violet-600 bg-violet-50" }, { label: "Promo videos", icon: Film, page: "Videos", tint: "text-pink-600 bg-pink-50" }, { label: "Reviews", icon: Star, page: "Reviews", tint: "text-amber-600 bg-amber-50" }].map(({ label, icon: Icon, page, tint }) => <button key={page} onClick={() => choosePage(page)} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", tint)}><Icon className="h-4 w-4" /></span><span className="text-xs font-semibold text-slate-700">{label}</span><ArrowRight className="ml-auto h-4 w-4 text-slate-300" /></button>)}</section>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [adminUser, setAdminUser] = useState<any>(null);
 
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [subView, setSubView] = useState<"list" | "add" | "edit">("list");
@@ -167,6 +230,8 @@ export default function AdminDashboard() {
           navigate("/xdopik-portal");
           return;
         }
+
+        setAdminUser(await res.json());
 
         setCheckingAuth(false);
       } catch {
@@ -340,7 +405,7 @@ export default function AdminDashboard() {
           <button onClick={() => choosePage("Orders")} title="Orders" aria-label="Orders" className="admin-icon-tile bg-[#f1efff] text-[#6f6af8]"><ShoppingCart className="h-[18px] w-[18px]" /></button>
           <DropdownMenu><DropdownMenuTrigger asChild><button title="All admin pages" aria-label="All admin pages" className="admin-icon-tile bg-[#e8faf6] text-[#00bfa3]"><Grid2X2 className="h-[18px] w-[18px]" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-56 bg-white"><DropdownMenuLabel>Admin pages</DropdownMenuLabel><DropdownMenuSeparator />{pageOptions.map(page => <DropdownMenuItem key={page.id} onSelect={() => choosePage(page.id)}><page.icon className="h-4 w-4" />{page.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>
           <button title="English" aria-label="English language" className="admin-icon-tile bg-[#eef3ff] text-[#6f6af8]"><span className="text-base">🇬🇧</span></button>
-          <DropdownMenu><DropdownMenuTrigger asChild><button aria-label="Admin account menu" className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-[#6f6af8] text-xs font-bold text-white shadow-sm">AD</button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white"><DropdownMenuLabel>Administrator</DropdownMenuLabel><DropdownMenuItem onSelect={() => choosePage("Audit Log")}><History className="h-4 w-4" />Audit log</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={handleLogout} className="text-rose-600"><LogOut className="h-4 w-4" />Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <DropdownMenu><DropdownMenuTrigger asChild><button aria-label="Admin account menu" className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-[#6f6af8] text-xs font-bold text-white shadow-sm">{adminUser?.role === "editor" ? "ED" : "AD"}</button></DropdownMenuTrigger><DropdownMenuContent align="end" className="bg-white"><DropdownMenuLabel>{adminUser?.role === "editor" ? "Editor" : "Administrator"}</DropdownMenuLabel><DropdownMenuItem onSelect={() => choosePage("Audit Log")}><History className="h-4 w-4" />Audit log</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={handleLogout} className="text-rose-600"><LogOut className="h-4 w-4" />Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
         <div className="flex items-center gap-2 md:hidden">
           <button onClick={() => setHeaderSearchOpen(value => !value)} aria-label="Search admin pages" className="admin-icon-tile h-9 w-9 bg-[#f1efff] text-[#6f6af8]"><SearchIcon className="h-4 w-4" /></button>
@@ -376,6 +441,7 @@ export default function AdminDashboard() {
           : activeTab === "Users" ? <UserManagement />
           : activeTab === "Settings" ? <AdminSettings />
           : activeTab === "Audit Log" ? <AdminAuditLog />
+          : adminUser?.role === "editor" ? <EditorWorkspace admin={adminUser} stats={stats} dash={dash} orders={dashboardOrders} timeRange={timeRange} setTimeRange={setTimeRange} choosePage={choosePage} openAddProduct={() => { setActiveTab("Products"); setSubView("add"); }} />
           : (
             <div className="admin-content space-y-5 md:space-y-6">
               <section className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
