@@ -93,22 +93,22 @@ const HomeHero = () => {
   const prefersReducedMotion = useReducedMotion();
   const slides = [
     {
-      src: "/images/hero-smartphones-bestseller.webp",
+      src: "/images/hero-smartphones-bestseller.webp?v=2",
       alt: "Upgrade to a bestseller. Shop the phones everyone is talking about at Dopik Electronics in Kigali.",
       href: "/shop?category=Smartphones",
     },
     {
-      src: "/images/hero-premium-laptops.webp",
+      src: "/images/hero-premium-laptops.webp?v=2",
       alt: "Premium laptops for every need. Work, create, learn, and play.",
       href: "/shop?category=Laptops",
     },
     {
-      src: "/images/hero-laptops-every-need.webp",
+      src: "/images/hero-laptops-every-need.webp?v=2",
       alt: "Premium laptops for every need, with performance, displays, and reliable quality.",
       href: "/shop?category=Laptops",
     },
     {
-      src: "/images/hero-gaming-consoles.webp",
+      src: "/images/hero-gaming-consoles.webp?v=2",
       alt: "Gaming accessories and consoles. Play, explore, and level up.",
       href: "/shop?category=Gaming",
     },

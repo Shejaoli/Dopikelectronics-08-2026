@@ -20,6 +20,11 @@ export function serveStatic(app: Express) {
       return next();
     }
 
+    // Hero banners are already optimized, full-resolution WebP assets. Avoid
+    // shrinking them to the optimizer's 900px default before rendering them
+    // in the 1200px-wide homepage carousel.
+    if (/^hero-.*\.webp$/i.test(filename)) return next();
+
     const sourcePath = path.join(distPath, "images", filename);
     try {
       const sourceStat = await fs.promises.stat(sourcePath);
