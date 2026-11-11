@@ -163,7 +163,7 @@ export default function Shop() {
     "@type": "Organization",
     "name": "Dopik Electronics",
     "url": "https://dopikelectronics.com",
-    "logo": "https://dopikelectronics.com/favicon.ico",
+    "logo": "https://dopikelectronics.com/dopik-logo.png",
     "description": "Premium electronics retailer in Kigali, Rwanda.",
     "contactPoint": {
       "@type": "ContactPoint",

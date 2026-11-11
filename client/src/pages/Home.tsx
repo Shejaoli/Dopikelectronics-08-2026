@@ -189,6 +189,21 @@ const FeaturedPosterMarquee = () => {
       image: "/images/airpods-series-promo.webp",
       href: "/shop?search=AirPods",
     },
+    {
+      title: "Pre-owned MacBook Pro 14-inch 2021 with Apple M1 Pro",
+      image: "/images/featured-macbook-pro-m1-pro.webp",
+      href: "/shop?search=MacBook%20Pro%20M1%20Pro",
+    },
+    {
+      title: "Pre-owned MacBook Pro 16-inch 2019",
+      image: "/images/featured-macbook-pro-2019.webp",
+      href: "/shop?search=MacBook%20Pro%202019",
+    },
+    {
+      title: "Microsoft Surface Pro 7 — 2-in-1 laptop and tablet",
+      image: "/images/featured-surface-pro-7.webp",
+      href: "/shop?search=Surface%20Pro%207",
+    },
   ];
 
   return (
@@ -1549,7 +1564,7 @@ export default function Home() {
     "@type": "Organization",
     "name": "Dopik Electronics",
     "url": "https://dopikelectronics.com",
-    "logo": "https://dopikelectronics.com/favicon.ico",
+    "logo": "https://dopikelectronics.com/dopik-logo.png",
     "description": "Premium electronics retailer in Kigali, Rwanda — smartphones, laptops, audio, gaming gear and more.",
     "address": {
       "@type": "PostalAddress",

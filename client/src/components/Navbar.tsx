@@ -102,7 +102,7 @@ export function Navbar() {
               {/* Menu Header */}
               <div className="flex items-center justify-between p-4 border-b shrink-0">
                 <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2">
-                  <img src="/dopik-logo.webp" alt="DOPIK" width={142} height={151} className="h-7 w-7 object-contain" />
+                  <img src="/dopik-logo.png" alt="DOPIK" width={150} height={150} className="h-7 w-7 object-contain" />
                   <span className="whitespace-nowrap text-xs font-black tracking-[0.1em]">DOPIK <span className="text-primary">ELECTRONICS</span></span>
                 </Link>
                 <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(false)}>
@@ -227,7 +227,7 @@ export function Navbar() {
         {/* Desktop: logo, product search, the four key shopping actions, and the category menu. */}
         <div className="hidden h-16 items-center gap-2 xl:flex">
           <Link href="/" onClick={handleLogoClick} aria-label="Dopik Electronics home" className="mr-1 flex shrink-0 items-center gap-2 rounded-xl py-1 transition hover:bg-accent/60">
-            <img src="/dopik-logo.webp" alt="Dopik Electronics" width={142} height={151} className="h-10 w-10 object-contain" />
+            <img src="/dopik-logo.png" alt="Dopik Electronics" width={150} height={150} className="h-10 w-10 object-contain" />
             <span className="whitespace-nowrap text-sm font-black tracking-[0.12em] text-foreground">DOPIK <span className="text-primary">ELECTRONICS</span></span>
           </Link>
 
@@ -277,7 +277,7 @@ export function Navbar() {
               <Menu className="h-6 w-6" strokeWidth={2.2} />
             </button>
             <Link href="/" onClick={handleLogoClick} aria-label="Dopik Electronics home" className={`flex min-w-0 shrink-0 items-center rounded-lg ${isProductPage ? "px-1" : "gap-1"}`}>
-              <img src="/dopik-logo.webp" alt="Dopik Electronics" width={142} height={151} className={isProductPage ? "h-8 w-8 object-contain" : "h-7 w-7 object-contain"} />
+              <img src="/dopik-logo.png" alt="Dopik Electronics" width={150} height={150} className={isProductPage ? "h-8 w-8 object-contain" : "h-7 w-7 object-contain"} />
               {!isProductPage && <span className="whitespace-nowrap text-[10px] font-black tracking-[0.06em] text-foreground">DOPIK <span className="text-primary">ELECTRONICS</span></span>}
             </Link>
             <div className="ml-auto flex items-center gap-0.5">

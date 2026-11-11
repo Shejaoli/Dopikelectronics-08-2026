@@ -14,8 +14,8 @@ self.addEventListener("push", (event) => {
 
   const options = {
     body: data.body,
-    icon: "/favicon.png",
-    badge: "/favicon.png",
+    icon: "/dopik-logo.png",
+    badge: "/dopik-logo.png",
     data: { url: data.url || "/admin" },
   };
 
