@@ -23,7 +23,7 @@ export default function Contact() {
     <div className="min-h-screen bg-background text-foreground">
       <Helmet>
         <title>Contact Dopik Electronics | Get Support in Rwanda</title>
-        <meta name="description" content="Contact Dopik Electronics in Kigali, Rwanda. Phone, email, WhatsApp support available 24/7. Visit our store or reach out with any questions." />
+        <meta name="description" content="Contact Dopik Electronics in Kigali, Rwanda by phone, email, or WhatsApp. Store hours: Monday to Friday 8 AM–9 PM, Saturday 9 AM–8 PM CAT; closed Sunday." />
         <meta property="og:title" content="Contact Dopik Electronics" />
         <meta property="og:description" content="Get in touch with Dopik Electronics. Available by phone, email, and WhatsApp in Kigali, Rwanda." />
         <meta property="og:url" content="https://dopikelectronics.com/contact" />

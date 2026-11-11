@@ -6,7 +6,7 @@ import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Check, Shield, Truck, Share2, ShoppingBag, Minus, Plus as PlusIcon, ArrowRight, Star, Send, Lock, RotateCcw, BadgeCheck, Heart, ChevronRight } from "lucide-react";
+import { ArrowLeft, Check, Share2, ShoppingBag, Minus, Plus as PlusIcon, ArrowRight, Star, Send, Heart, ChevronRight, MessageCircle, CreditCard, MapPin } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
@@ -47,7 +47,6 @@ export default function ProductDetails() {
   const [selectedStorage, setSelectedStorage] = useState(storageOptions[0]?.option || "");
   const [selectedColor, setSelectedColor] = useState(colorOptions[0]?.name || "");
   const [quantity, setQuantity] = useState(1);
-  const [selectedWarranty, setSelectedWarranty] = useState("");
 
   // Sticky bar state
   const [showStickyBar, setShowStickyBar] = useState(false);
@@ -237,6 +236,15 @@ export default function ProductDetails() {
   const whatsappOrderMessage = `Hello DOPIK ELECTRONICS, I want to order: ${product.name} - RF ${productPricing.salePrice}. Please confirm availability.`;
   const whatsappUrl = `https://wa.me/250783562143?text=${encodeURIComponent(whatsappOrderMessage)}`;
   const specs = product.specs as Record<string, string> || {};
+  const listedCondition = Object.entries(specs).find(([key, value]) => /^condition$/i.test(key.trim()) && value?.trim())?.[1]?.trim();
+  const normalizedCondition = listedCondition?.toLowerCase();
+  const schemaCondition = normalizedCondition === "brand new" || normalizedCondition === "new"
+    ? "https://schema.org/NewCondition"
+    : normalizedCondition?.includes("refurbished")
+      ? "https://schema.org/RefurbishedCondition"
+      : normalizedCondition === "used"
+        ? "https://schema.org/UsedCondition"
+        : undefined;
 
   const priceValidUntilStr = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
   const productSchema = {
@@ -248,8 +256,14 @@ export default function ProductDetails() {
     "offers": {
       "@type": "Offer", "price": getProductPricing(product).salePrice.toString(), "priceCurrency": "RWF",
       "priceValidUntil": priceValidUntilStr,
-      "availability": product.stockStatus === 'in_stock' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      "itemCondition": "https://schema.org/RefurbishedCondition",
+      "availability": product.stockStatus === "in_stock"
+        ? "https://schema.org/InStock"
+        : product.stockStatus === "pre_order"
+          ? "https://schema.org/PreOrder"
+          : product.stockStatus === "out_of_stock"
+            ? "https://schema.org/OutOfStock"
+            : undefined,
+      ...(schemaCondition ? { "itemCondition": schemaCondition } : {}),
       "url": `https://dopikelectronics.com/product/${product.slug}`,
       "seller": { "@type": "Organization", "name": "Dopik Electronics" }
     }
@@ -259,7 +273,7 @@ export default function ProductDetails() {
     <div className="min-h-screen bg-background text-foreground">
       <Helmet>
         <title>{product.metaTitle?.trim() || buildProductSeoTitle(product.name, product.brand, product.category)}</title>
-        <meta name="description" content={`Buy ${product.name} in Rwanda. Certified refurbished, 12-month warranty, fast delivery in Kigali. ${product.description.substring(0, 100)}...`} />
+        <meta name="description" content={`Buy ${product.name} in Rwanda. View current price, availability${listedCondition ? ` and ${listedCondition.toLowerCase()} condition` : ""}, and specifications. Contact Dopik Electronics in Kigali for delivery and item-specific warranty or return details. ${product.description.substring(0, 70)}...`} />
         <meta name="keywords" content={[product.name, product.brand, product.category, "buy in Rwanda", "Kigali electronics", ...((product.searchKeywords as string[] | null) || [])].join(", ")} />
         <meta property="og:title" content={product.metaTitle?.trim() || buildProductSeoTitle(product.name, product.brand, product.category)} />
         <meta property="og:description" content={product.description.substring(0, 160)} />
@@ -544,32 +558,19 @@ export default function ProductDetails() {
                 className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#25D366] h-9 text-sm font-bold text-white transition-all hover:bg-[#1ebe5d] shadow-sm shadow-[#25D366]/20"
               >
                 <SiWhatsapp className="h-4 w-4" />
-                Order on WhatsApp
+                Request on WhatsApp
               </a>
+              <p className="-mt-1 text-center text-[10px] text-muted-foreground">Our team confirms availability and next steps; this message alone does not place an order.</p>
 
               <div className="h-px bg-border" />
 
-              {/* Trust mini badges */}
-              <div className="space-y-2">
-                {[
-                  { icon: <Shield className="h-3.5 w-3.5 text-primary" />, text: "1-Year Warranty" },
-                  { icon: <Truck className="h-3.5 w-3.5 text-green-500" />, text: "Fast Delivery in Kigali" },
-                  { icon: <RotateCcw className="h-3.5 w-3.5 text-orange-500" />, text: "30-Day Returns" },
-                  { icon: <Lock className="h-3.5 w-3.5 text-purple-500" />, text: "Secure Checkout" },
-                ].map((b, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    {b.icon}
-                    <span className="text-xs text-muted-foreground">{b.text}</span>
-                  </div>
-                ))}
+              <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-3 text-xs">
+                <p className="flex items-center gap-2"><CreditCard className="h-3.5 w-3.5 text-primary" /> Cash on Delivery or MTN Mobile Money at checkout</p>
+                <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-primary" /> Delivery charge is shown at checkout; our team can confirm coverage and timing</p>
+                <p className="flex items-center gap-2"><MessageCircle className="h-3.5 w-3.5 text-primary" /> WhatsApp sends an order request for our team to confirm</p>
+                <p className="text-muted-foreground">Check the listing for condition and included items. Ask us to confirm authenticity, warranty, or return terms for this item.</p>
+                <Link href="/contact" className="inline-flex font-semibold text-primary hover:underline">Contact the Kigali team</Link>
               </div>
-
-              <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2">
-                <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Certified genuine — verified by DOPIK</p>
-              </div>
-
-              <p className="text-center text-[10px] text-muted-foreground">Direct orders confirmed via phone. WhatsApp handled by our sales team.</p>
             </div>
           </div>
         </div>
@@ -608,10 +609,12 @@ export default function ProductDetails() {
                 <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-4">Frequently Asked Questions</h3>
                 <Accordion type="single" collapsible className="w-full">
                   {[
-                    { q: "Is this product brand new?", a: "We offer both brand new and certified refurbished electronics. Refurbished items undergo rigorous testing and are restored to like-new condition with genuine parts." },
-                    { q: "Does it have warranty?", a: "Yes, all our electronics come with a 1-year limited warranty covering hardware defects. Our dedicated service center in Kigali handles all warranty claims promptly." },
-                    { q: "How long does delivery take?", a: "Delivery within Kigali typically takes 2–4 hours. For orders outside Kigali, delivery takes 24–48 hours depending on your location." },
-                    { q: "Can I pay on delivery?", a: "Yes, we support Cash on Delivery and Momo Pay on Delivery for all orders within Kigali. For orders outside Kigali, we require payment before shipping." },
+                    { q: "What condition is this product in?", a: listedCondition ? `The listing identifies this item as ${listedCondition}. Review its specifications and contact us if you need clarification.` : "Check the product description and specifications for condition details. Contact us if the listing does not state the condition you need to know." },
+                    { q: "Can you confirm authenticity?", a: "Contact our team if you need us to confirm the product’s authenticity or included items before ordering." },
+                    { q: "What warranty or return terms apply?", a: "Warranty and return terms can vary by product. Please contact our team and confirm the terms for this item before ordering." },
+                    { q: "How much is delivery and when will it arrive?", a: "The current delivery charge is shown at checkout. Our team can confirm whether your location is covered and provide an estimated delivery time." },
+                    { q: "Which payment methods can I use?", a: "Checkout currently offers Cash on Delivery and MTN Mobile Money. Select your preferred option when placing the order." },
+                    { q: "Does WhatsApp place the order automatically?", a: "No. WhatsApp opens a prefilled order request. Our sales team confirms availability and the next steps with you." },
                   ].map((item, i) => (
                     <AccordionItem key={i} value={`d-${i}`} className="border-border">
                       <AccordionTrigger className="text-sm font-semibold hover:text-primary transition-colors py-3">{item.q}</AccordionTrigger>
@@ -737,48 +740,13 @@ export default function ProductDetails() {
               </div>
             </div>
 
-            {/* Right: Extended Warranty + Trust (3 cols) */}
+            {/* Right: Shopping information (3 cols) */}
             <div className="col-span-3 space-y-4">
-              {/* Extended Warranty */}
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-bold text-foreground">Extended Warranty</p>
-                  <span className="text-[9px] font-bold text-white bg-red-500 px-2 py-0.5 rounded-full">NEW</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground mb-3">Authorised repair centers across Rwanda</p>
-                <div className="flex gap-2">
-                  {["1 Year", "2 Years"].map(yr => (
-                    <button
-                      key={yr}
-                      onClick={() => setSelectedWarranty(prev => prev === yr ? "" : yr)}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                        selectedWarranty === yr
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-foreground border-border hover:border-primary"
-                      }`}
-                    >
-                      {yr}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Trust badges */}
               <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-                {[
-                  { icon: <Shield className="h-4 w-4 text-primary" />, title: "1-Year Warranty", sub: "Hardware coverage" },
-                  { icon: <Truck className="h-4 w-4 text-green-600" />, title: "Fast Delivery", sub: "2–4 hrs in Kigali" },
-                  { icon: <RotateCcw className="h-4 w-4 text-orange-500" />, title: "30-Day Returns", sub: "Hassle-free policy" },
-                  { icon: <Lock className="h-4 w-4 text-purple-500" />, title: "Secure Checkout", sub: "SSL encrypted" },
-                ].map((b, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-background p-2.5">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">{b.icon}</div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">{b.title}</p>
-                      <p className="text-[10px] text-muted-foreground">{b.sub}</p>
-                    </div>
-                  </div>
-                ))}
+                <h3 className="text-sm font-bold text-foreground">Before you order</h3>
+                <p className="text-xs text-muted-foreground">Check the item condition and included items in its listing. Ask us to confirm authenticity, warranty, or return terms for this product before purchase.</p>
+                <p className="text-xs text-muted-foreground">Delivery charge appears at checkout. Our team confirms coverage and timing for your address.</p>
+                <Link href="/contact" className="inline-flex text-xs font-semibold text-primary hover:underline">Ask the Kigali team</Link>
               </div>
             </div>
           </div>
@@ -903,28 +871,11 @@ export default function ProductDetails() {
             </div>
           )}
 
-          {/* 8. Extended Warranty */}
-          <div className="rounded-[12px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[13px] font-black text-gray-800 dark:text-gray-200">Get Extended Warranty</p>
-              <span className="text-[9px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full">NEW</span>
-            </div>
-            <p className="text-[10px] text-gray-400 mb-2">Authorised repair centers across Rwanda</p>
-            <div className="flex gap-2">
-              {["1 Year", "2 Years"].map(yr => (
-                <button
-                  key={yr}
-                  onClick={() => setSelectedWarranty(prev => prev === yr ? "" : yr)}
-                  className={`px-4 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
-                    selectedWarranty === yr
-                      ? "bg-[#1565C0] text-white border-[#1565C0]"
-                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"
-                  }`}
-                >
-                  {yr}
-                </button>
-              ))}
-            </div>
+          {/* 8. Item-specific shopping terms */}
+          <div className="rounded-[12px] border border-gray-200 dark:border-gray-700 bg-white p-3 dark:bg-gray-800">
+            <p className="text-[13px] font-black text-gray-800 dark:text-gray-200">Before you order</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Check the listing for condition and included items. Ask our team to confirm authenticity, warranty, or return terms. Delivery charge appears at checkout, and our team can confirm coverage and timing.</p>
+            <Link href="/contact" className="mt-2 inline-flex text-[11px] font-semibold text-primary hover:underline">Ask the Kigali team</Link>
           </div>
 
           {/* 9. Description */}
@@ -948,41 +899,26 @@ export default function ProductDetails() {
             </div>
           )}
 
-          {/* 11. Trust Badges */}
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { icon: <Shield className="h-4 w-4 text-[#1565C0]" />, title: "1-Year Warranty", sub: "Hardware coverage" },
-              { icon: <Truck className="h-4 w-4 text-green-600" />, title: "Fast Delivery", sub: "2–4 hrs in Kigali" },
-              { icon: <RotateCcw className="h-4 w-4 text-orange-500" />, title: "30-Day Returns", sub: "Hassle-free policy" },
-              { icon: <Lock className="h-4 w-4 text-purple-500" />, title: "Secure Checkout", sub: "SSL encrypted" },
-            ].map((b, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-[12px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50 dark:bg-gray-700">{b.icon}</div>
-                <div>
-                  <p className="text-[11px] font-bold text-gray-800 dark:text-gray-200">{b.title}</p>
-                  <p className="text-[10px] text-gray-400">{b.sub}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* 12. WhatsApp Order */}
+          {/* 12. WhatsApp order request */}
           <a href={whatsappUrl} target="_blank" rel="noreferrer"
             className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[#25D366] py-3 text-[14px] font-bold text-white"
           >
             <SiWhatsapp className="h-5 w-5" />
-            Order on WhatsApp
+            Request on WhatsApp
           </a>
+          <p className="-mt-1 text-center text-[10px] text-muted-foreground">Our team confirms availability and next steps; this message alone does not place an order.</p>
 
           {/* 13. FAQ */}
           <div className="rounded-[12px] border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
             <p className="text-[11px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400 mb-2">FAQs</p>
             <Accordion type="single" collapsible className="w-full">
               {[
-                { q: "Is this product brand new?", a: "We offer both brand new and certified refurbished electronics. Check product specs for condition." },
-                { q: "Does it have warranty?", a: "Yes, all products come with a 1-year limited warranty from our Kigali service center." },
-                { q: "How long is delivery?", a: "2–4 hours within Kigali. 24–48 hours outside Kigali." },
-                { q: "Can I pay on delivery?", a: "Yes — Cash on Delivery and Momo Pay available for Kigali orders." },
+                { q: "What condition is this product in?", a: listedCondition ? `The listing identifies this item as ${listedCondition}. Review its specifications and contact us if you need clarification.` : "Check the product description and specifications for condition details. Contact us if the listing does not state the condition you need to know." },
+                { q: "Can you confirm authenticity?", a: "Contact our team if you need us to confirm the product’s authenticity or included items before ordering." },
+                { q: "What warranty or return terms apply?", a: "Warranty and return terms can vary by product. Please contact our team and confirm the terms for this item before ordering." },
+                { q: "How much is delivery and when will it arrive?", a: "Delivery is currently shown as free at checkout. Our team can confirm whether your address is covered and provide delivery timing." },
+                { q: "Which payment methods can I use?", a: "Checkout currently offers Cash on Delivery and MTN Mobile Money. Select your preferred option when placing the order." },
+                { q: "Does WhatsApp place the order automatically?", a: "No. WhatsApp opens a prefilled order request. Our sales team confirms availability and the next steps with you." },
               ].map((item, i) => (
                 <AccordionItem key={i} value={`m-${i}`} className="border-gray-100 dark:border-gray-700">
                   <AccordionTrigger className="text-[12px] font-semibold text-gray-800 dark:text-gray-200 hover:text-[#1565C0] py-2">{item.q}</AccordionTrigger>

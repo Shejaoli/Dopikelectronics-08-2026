@@ -30,7 +30,7 @@ export function Footer() {
               <span className="text-sm font-black tracking-[0.14em]">DOPIK <span className="text-yellow-400">ELECTRONICS</span></span>
             </div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Great technology, trusted in Kigali.</h2>
-            <p className="mt-2 max-w-lg text-sm leading-6 text-white/75">Shop certified electronics with local support, reliable delivery, and warranty care in Rwanda.</p>
+            <p className="mt-2 max-w-lg text-sm leading-6 text-white/75">Shop electronics with local support in Kigali. Check each listing and ask our team to confirm product condition, warranty or return terms, and delivery coverage.</p>
           </div>
           <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-yellow-400 px-5 text-sm font-bold text-slate-950 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:bg-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
             <SiWhatsapp className="h-4 w-4" /> Chat with our team <ArrowUpRight className="h-4 w-4" />

@@ -168,7 +168,7 @@ export default function Deals() {
     <div className="min-h-screen bg-background text-foreground">
       <Helmet>
         <title>Hot Deals on Electronics | Dopik Electronics Rwanda</title>
-        <meta name="description" content="Shop current deals on certified electronics in Rwanda. Find discounted phones, audio, laptops, gaming gear and more at Dopik Electronics." />
+        <meta name="description" content="Shop current deals on phones, audio, laptops, gaming gear and more in Rwanda. View current prices and contact Dopik Electronics in Kigali for local support." />
         <meta property="og:title" content="Hot Deals on Electronics | Dopik Electronics" />
         <meta property="og:description" content="Shop current deals on phones, laptops, audio and gaming gear in Kigali." />
         <meta property="og:url" content="https://dopikelectronics.com/deals" />
@@ -185,7 +185,7 @@ export default function Deals() {
           <div className="flex w-max animate-marquee motion-reduce:animate-none hover:[animation-play-state:paused]">
             {[0, 1].map((copy) => (
               <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center gap-6 px-4 py-2 text-xs font-extrabold sm:gap-10 sm:px-6 sm:py-2.5 sm:text-sm">
-                <span className="whitespace-nowrap">1-Year Warranty Guarantee</span>
+                <span className="whitespace-nowrap">Local support in Kigali</span>
                 <span aria-hidden="true" className="text-white/80">✦</span>
                 <span className="whitespace-nowrap">{topDiscount > 0 ? `Up to ${topDiscount}% off selected deals` : "Great prices on selected electronics"}</span>
                 <span aria-hidden="true" className="text-white/80">✦</span>

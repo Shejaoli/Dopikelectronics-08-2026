@@ -70,6 +70,7 @@ import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { 
+  type CarouselApi,
   Carousel, 
   CarouselContent, 
   CarouselItem,
@@ -96,21 +97,19 @@ const HomeHero = () => {
       src: "/images/hero-smartphones-bestseller.webp?v=2",
       alt: "Upgrade to a bestseller. Shop the phones everyone is talking about at Dopik Electronics in Kigali.",
       href: "/shop?category=Smartphones",
-    },
-    {
-      src: "/images/hero-premium-laptops.webp?v=2",
-      alt: "Premium laptops for every need. Work, create, learn, and play.",
-      href: "/shop?category=Laptops",
+      cta: "Shop Smartphones",
     },
     {
       src: "/images/hero-laptops-every-need.webp?v=2",
       alt: "Premium laptops for every need, with performance, displays, and reliable quality.",
       href: "/shop?category=Laptops",
+      cta: "Shop Laptops",
     },
     {
       src: "/images/hero-gaming-consoles.webp?v=2",
       alt: "Gaming accessories and consoles. Play, explore, and level up.",
       href: "/shop?category=Gaming",
+      cta: "Shop Gaming",
     },
   ];
 
@@ -125,7 +124,7 @@ const HomeHero = () => {
   return (
     <section aria-label="Featured electronics promotion" className="w-full px-3 py-2 sm:px-5 sm:py-3 lg:px-6">
       <div className="relative mx-auto aspect-[1203/379] w-full max-w-[1200px] overflow-hidden rounded-2xl bg-white shadow-[0_6px_24px_rgba(18,39,71,0.12)] ring-1 ring-black/5">
-        <Link href={slides[activeSlide].href} aria-label={`Shop ${slides[activeSlide].alt}`} className="absolute inset-0 block focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-inset">
+        <Link href={slides[activeSlide].href} aria-label={slides[activeSlide].cta} className="absolute inset-0 block focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-inset">
           <AnimatePresence mode="wait" initial={false}>
             <motion.img
               key={slides[activeSlide].src}
@@ -143,6 +142,9 @@ const HomeHero = () => {
               className="block h-full w-full object-cover object-center"
             />
           </AnimatePresence>
+          <span aria-hidden="true" className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground shadow-lg sm:bottom-4 sm:right-4 sm:px-4 sm:text-sm">
+            {slides[activeSlide].cta}<ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          </span>
         </Link>
         <div className="absolute bottom-2 right-3 z-10 flex items-center gap-1.5 rounded-full bg-white/85 p-1 shadow-sm backdrop-blur-sm" role="group" aria-label="Choose promotion slide">
           {slides.map((slide, index) => (
@@ -245,10 +247,10 @@ const FeaturedPosterMarquee = () => {
 };
 
 const trustItems = [
-  { icon: <ShieldCheck className="w-3.5 h-3.5" />, label: "12-Month Warranty", sub: "Genuine protection", color: "bg-primary/10 text-primary" },
-  { icon: <Check className="w-3.5 h-3.5" />, label: "Quality Checked", sub: "Rigorously tested", color: "bg-primary/10 text-primary" },
-  { icon: <MapPin className="w-3.5 h-3.5" />, label: "Kigali Support", sub: "Local expert help", color: "bg-primary/10 text-primary" },
-  { icon: <Star className="w-3.5 h-3.5 fill-yellow-600" />, label: "4.7 Google Reviews", sub: "Trusted by thousands", color: "bg-yellow-400/10 text-yellow-600" },
+  { icon: <Check className="w-3.5 h-3.5" />, label: "Cash on Delivery", sub: "Choose at checkout", color: "bg-primary/10 text-primary" },
+  { icon: <Truck className="w-3.5 h-3.5" />, label: "MTN Mobile Money", sub: "Available at checkout", color: "bg-primary/10 text-primary" },
+  { icon: <MapPin className="w-3.5 h-3.5" />, label: "Kigali Store Support", sub: "Talk to our local team", color: "bg-primary/10 text-primary" },
+  { icon: <Check className="w-3.5 h-3.5" />, label: "WhatsApp Orders", sub: "Team confirms your request", color: "bg-primary/10 text-primary" },
 ];
 
 const TrustBar = () => {
@@ -310,7 +312,7 @@ const RecommendedProducts = () => {
   if (displayProducts.length === 0) return null;
 
   return (
-    <section className="py-5 sm:py-8 border-b">
+    <section className="py-3 sm:py-8 border-b">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col mb-4 sm:mb-6">
           <h2 className="text-2xl font-bold">Recommended for You</h2>
@@ -328,7 +330,7 @@ const RecommendedProducts = () => {
         <Carousel className="w-full">
           <CarouselContent className="-ml-4">
             {displayProducts.map((product) => (
-              <CarouselItem key={product.id} className="pl-4 basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+              <CarouselItem key={product.id} className="pl-4 basis-[58%] min-[480px]:basis-[40%] md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
                 <ProductCard product={product} />
               </CarouselItem>
             ))}
@@ -392,55 +394,6 @@ const PopularCategories = () => {
     </section>
   );
 };
-const CustomerFavorites = () => {
-  const { data: smartphones } = useProducts({ category: "Smartphones" });
-  const { data: laptops } = useProducts({ category: "Laptops" });
-  const { data: tablets } = useProducts({ category: "Tablets" });
-  const { data: audio } = useProducts({ category: "Audio" });
-  const { data: home } = useProducts({ category: "Home" });
-
-  const categories = [
-    { label: "Smartphones", products: smartphones },
-    { label: "Laptops", products: laptops },
-    { label: "Tablets", products: tablets },
-    { label: "Audio", products: audio },
-    { label: "Home", products: home },
-  ];
-
-  return (
-    <>
-      {categories.map((category) => {
-        if (!category.products || category.products.length === 0) return null;
-        
-        return (
-          <section key={category.label} className="py-5 sm:py-8 border-b">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-2xl font-bold">Customer Favorites {category.label}</h2>
-                <Link href={`/shop?category=${category.label}`}>
-                  <Button variant="ghost" className="text-primary font-bold">
-                    See all <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
-              </div>
-              <Carousel className="w-full">
-                <CarouselContent className="-ml-4">
-                  {category.products.slice(0, 8).map((product) => (
-                    <CarouselItem key={product.id} className="pl-4 basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-                      <ProductCard product={product} />
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <div className="hidden md:block">
-                </div>
-              </Carousel>
-            </div>
-          </section>
-        );
-      })}
-    </>
-  );
-};
 const TopDeals = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -478,12 +431,12 @@ const TopDeals = () => {
   const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
-    <section className="w-full py-5 px-3 md:px-6 lg:px-8">
+    <section className="w-full py-3 px-3 md:px-6 md:py-5 lg:px-8">
       <div className="mx-auto max-w-7xl">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">Today's Top Deals</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">{new Intl.DateTimeFormat("en", { month: "long" }).format(new Date())} Top Deals</h2>
           <Link href="/deals" className="flex items-center gap-1 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-primary transition-colors">
             See all <ArrowRight className="h-4 w-4" />
           </Link>
@@ -529,11 +482,11 @@ const TopDeals = () => {
             className="flex gap-3 overflow-x-auto scrollbar-hide py-1 select-none"
             style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
           >
-            {products.slice(0, 12).map((product: any) => (
+            {products.slice(0, 8).map((product: any) => (
               <div
                 key={product.id}
                 className="shrink-0 relative"
-                style={{ width: 148, minWidth: 148 }}
+                style={{ width: "min(70vw, 210px)", minWidth: "min(70vw, 210px)" }}
               >
                 <div className="absolute top-2 left-2 z-10">
                   <span className="flex items-center gap-1 bg-red-500 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full shadow">
@@ -617,7 +570,7 @@ const TopDeals = () => {
                 touchAction: "pan-x",
               }}
             >
-              {products.slice(0, 12).map((product: any) => (
+              {products.slice(0, 8).map((product: any) => (
                 <div
                   key={product.id}
                   className="shrink-0 relative"
@@ -645,7 +598,7 @@ const TrustBanner = () => {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
           <div className="space-y-4 text-center md:text-left">
-            <h2 className="text-2xl font-bold text-teal-900 dark:text-teal-400">Premium Refurbished. Trusted Quality.</h2>
+            <h2 className="text-2xl font-bold text-teal-900 dark:text-teal-400">Shop with local support in Kigali</h2>
             <div className="flex items-center justify-center md:justify-start gap-2">
               <div className="bg-green-500 p-0.5 rounded-sm">
                 <Star className="w-3 h-3 fill-white text-white" />
@@ -655,13 +608,13 @@ const TrustBanner = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             {[
-              { title: "Save up to 70%", icon: Star },
-              { title: "12 Months Warranty", icon: ShieldCheck },
-              { title: "30-Day Returns", icon: RotateCcw },
-              { title: "Quality Checked", icon: Star },
-              { title: "Save CO₂ vs new", icon: Star }
+              { title: "Cash on Delivery", icon: Check },
+              { title: "MTN Mobile Money", icon: Check },
+              { title: "WhatsApp order requests", icon: Check },
+              { title: "Kigali store support", icon: MapPin },
             ].map((item, i) => (
               <div key={i} className="flex flex-col items-center text-center gap-2">
+                <item.icon className="h-5 w-5 text-primary" aria-hidden="true" />
                 <p className="font-bold text-teal-900 dark:text-teal-400 text-sm leading-tight">{item.title}</p>
               </div>
             ))}
@@ -671,174 +624,49 @@ const TrustBanner = () => {
     </section>
   );
 };
-const MaximizeSavings = () => {
-  const savingsDeals = [
-    { badge: "10% Off", badgeColor: "#1565C0", img: "/images/ugreen-adapter.webp", name: "USB-C Hub", worth: "RWF 6,500" },
-    { badge: "Free", badgeColor: "#25a244", img: "/images/soundcore-liberty-4.webp", name: "Earbuds Case", worth: "RWF 8,000" },
-    { badge: "Flash", badgeColor: "#e53935", img: "/images/iphone-16.webp", name: "iPhone 16", worth: "RWF 1,200,000" },
-    { badge: "BOGO", badgeColor: "#FFC107", img: "/images/beats-pill.webp", name: "Beats Pill", worth: "RWF 250,000" },
-    { badge: "15% Off", badgeColor: "#1565C0", img: "/images/saramonic-mic.webp", name: "Mic System", worth: "RWF 42,000" },
-    { badge: "Free", badgeColor: "#25a244", img: "/images/iphone-17-pro-max-1.webp", name: "Screen Guard", worth: "RWF 5,000" },
-  ];
-
+const ActiveCouponCodes = () => {
   const { data: activeCoupons = [] } = useQuery<CouponCode[]>({
     queryKey: ["/api/coupons"],
     staleTime: 60000,
   });
 
-  const ScrollRow = ({ items }: { items: typeof savingsDeals }) => (
-    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-      {items.map((item, i) => (
-        <Link key={i} href="/shop">
-          <div className="flex-shrink-0 w-[100px] h-[130px] rounded-[10px] bg-[#f5f5f5] dark:bg-gray-800 overflow-hidden cursor-pointer hover:shadow-md transition-shadow flex flex-col">
-            <div className="relative flex-1 bg-white dark:bg-gray-700 flex items-center justify-center p-1 min-h-0">
-              <span
-                className="absolute top-1 left-1 z-10 text-[8px] font-black px-1.5 py-0.5 rounded-full leading-none"
-                style={{ backgroundColor: item.badgeColor, color: "#fff" }}
-              >
-                {item.badge}
-              </span>
-              <img
-                src={item.img}
-                alt={item.name}
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-contain"
-                {...getResponsiveImageProps(item.img, "100px")}
-              />
-            </div>
-            <div className="px-1.5 pt-1 pb-1.5 bg-[#f5f5f5] dark:bg-gray-800">
-              <p className="text-[10px] font-semibold text-gray-800 dark:text-gray-200 leading-tight line-clamp-2">{item.name}</p>
-              <p className="text-[9px] text-gray-400 mt-0.5">worth {item.worth}</p>
-            </div>
-          </div>
-        </Link>
-      ))}
-    </div>
-  );
-
+  if (activeCoupons.length === 0) return null;
   return (
-    <section className="px-3 py-3 space-y-3 max-w-7xl mx-auto">
-      {/* Row 1 — Maximize your savings */}
-      <div className="bg-white dark:bg-gray-900 rounded-[14px] p-3 md:p-4">
-        <div className="flex items-center justify-between mb-2.5">
-          <h2 className="text-[14px] md:text-base font-black text-gray-900 dark:text-white">Maximize your savings</h2>
-          <Link href="/shop" className="text-[12px] font-semibold text-[#1565C0] hover:underline">
-            See all →
-          </Link>
+    <section className="mx-auto max-w-7xl px-3 py-3 sm:px-6" aria-labelledby="coupon-codes-title">
+      <div className="rounded-[14px] bg-white p-3 dark:bg-gray-900 md:p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 id="coupon-codes-title" className="text-[14px] font-black text-gray-900 dark:text-white md:text-base">Active coupon codes</h2>
+          <Link href="/deals" className="text-[12px] font-semibold text-[#1565C0] hover:underline">See all deals →</Link>
         </div>
-        <ScrollRow items={savingsDeals} />
+        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          {activeCoupons.map((coupon) => {
+            const color = (coupon as any).badgeColor || "#1565C0";
+            const label = coupon.discountType === "percentage"
+              ? `${coupon.discountValue}% off`
+              : `RWF ${coupon.discountValue.toLocaleString()} off`;
+            return (
+              <button
+                key={coupon.id}
+                type="button"
+                className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 transition-shadow hover:shadow-md"
+                style={{ border: `1.5px dashed ${color}`, backgroundColor: `${color}12` }}
+                onClick={() => navigator.clipboard?.writeText(coupon.code)}
+                title={`Copy coupon code ${coupon.code}`}
+                aria-label={`Copy coupon code ${coupon.code}, ${coupon.label || label}`}
+              >
+                <span className="text-[9px] font-bold" style={{ color }}>{coupon.label || label}</span>
+                <span className="rounded-full border bg-white px-1.5 py-0.5 font-mono text-[8px] font-black dark:bg-gray-800" style={{ color, borderColor: `${color}40` }}>
+                  {coupon.code}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-
-      {/* Row 2 — Top deals for you (with live coupon codes from admin) */}
-      {activeCoupons.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 rounded-[14px] p-3 md:p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-[14px] md:text-base font-black text-gray-900 dark:text-white">Live coupon deals</h2>
-            <Link href="/deals" className="text-[12px] font-semibold text-[#1565C0] hover:underline">
-              See all →
-            </Link>
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-            {activeCoupons.map((coupon) => {
-              const color = (coupon as any).badgeColor || "#1565C0";
-              const label = coupon.discountType === "percentage"
-                ? `${coupon.discountValue}% off`
-                : `RWF ${coupon.discountValue.toLocaleString()} off`;
-              return (
-                <div
-                  key={coupon.id}
-                  className="flex-shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1.5 cursor-pointer hover:shadow-md transition-shadow"
-                  style={{ border: `1.5px dashed ${color}`, backgroundColor: `${color}12` }}
-                  onClick={() => navigator.clipboard?.writeText(coupon.code)}
-                  title="Click to copy code"
-                >
-                  <span className="text-[9px] font-bold" style={{ color }}>{coupon.label || label}</span>
-                  <span className="text-[8px] font-black bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded-full font-mono" style={{ color, border: `1px solid ${color}40` }}>
-                    {coupon.code}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </section>
   );
 };
 
-const HomeProducts = () => {
-  const { data: products } = useProducts({ category: "Home" });
-  
-  if (!products || products.length === 0) return null;
-
-  return (
-    <motion.section 
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="py-5 sm:py-8"
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h2 className="text-2xl font-bold">Home Products</h2>
-          <Link href="/home-kitchen">
-            <Button variant="ghost" className="text-primary font-bold">
-              See all <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
-        <Carousel className="w-full">
-          <CarouselContent className="-ml-4">
-            {products.slice(0, 8).map((product) => (
-              <CarouselItem key={product.id} className="pl-4 basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-                <ProductCard product={product} />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <div className="hidden md:block">
-          </div>
-        </Carousel>
-      </div>
-    </motion.section>
-  );
-};
-const GamingPreview = () => {
-  const { data: products } = useProducts({ category: "Gaming" });
-  
-  if (!products || products.length === 0) return null;
-
-  return (
-    <motion.section 
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="py-5 sm:py-8"
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h2 className="text-2xl font-bold">Gaming Gear</h2>
-          <Link href="/gaming">
-            <Button variant="ghost" className="text-primary font-bold">
-              See all <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
-        <Carousel className="w-full">
-          <CarouselContent className="-ml-4">
-            {products.slice(0, 6).map((product) => (
-              <CarouselItem key={product.id} className="pl-4 basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-                <ProductCard product={product} />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <div className="hidden md:block">
-          </div>
-        </Carousel>
-      </div>
-    </motion.section>
-  );
-};
 export const CircularEconomy = () => {
   const { data: dbVideos, isLoading } = useQuery<any[]>({
     queryKey: ["/api/videos"]
@@ -1211,39 +1039,6 @@ export const CircularEconomy = () => {
     </section>
   );
 };
-const AudioPreview = () => {
-  const { data: products } = useProducts({ category: "Audio" });
-  
-  if (!products || products.length === 0) return null;
-
-  return (
-    <section className="py-5 sm:py-8">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h2 className="text-2xl font-bold">Audio</h2>
-          <Link href="/audio">
-            <Button variant="ghost" className="text-primary font-bold">
-              See all <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
-        <Carousel className="w-full">
-          <CarouselContent className="-ml-4">
-            {products.slice(0, 6).map((product) => (
-              <CarouselItem key={product.id} className="pl-4 basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-                <ProductCard product={product} />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <div className="hidden md:block">
-          </div>
-        </Carousel>
-      </div>
-    </section>
-  );
-};
-
-
 const FeaturedSlider = () => {
   const [current, setCurrent] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -1448,6 +1243,90 @@ const FeaturedSlider = () => {
   );
 };
 
+const HomeSectionProductCarousel = ({ section, products }: { section: any; products: any[] }) => {
+  const [api, setApi] = useState<CarouselApi>();
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+  const [interactionPaused, setInteractionPaused] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (!api) return;
+    const updateControls = () => {
+      setCanScrollPrev(api.canScrollPrev());
+      setCanScrollNext(api.canScrollNext());
+    };
+
+    updateControls();
+    api.on("select", updateControls);
+    api.on("reInit", updateControls);
+    return () => {
+      api.off("select", updateControls);
+      api.off("reInit", updateControls);
+    };
+  }, [api]);
+
+  useEffect(() => {
+    if (!api || !canScrollNext || interactionPaused || prefersReducedMotion) return;
+    const timer = window.setInterval(() => {
+      // Stop at the last available snap; never loop back to the first product.
+      if (api.canScrollNext()) api.scrollNext();
+      else setCanScrollNext(false);
+    }, 10_000);
+    return () => window.clearInterval(timer);
+  }, [api, canScrollNext, interactionPaused, prefersReducedMotion]);
+
+  const handleBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (!event.currentTarget.contains(nextTarget)) setInteractionPaused(false);
+  };
+
+  return (
+    <Carousel
+      className="w-full"
+      opts={{ align: "start", containScroll: "trimSnaps" }}
+      setApi={setApi}
+      onMouseEnter={() => setInteractionPaused(true)}
+      onMouseLeave={() => setInteractionPaused(false)}
+      onFocusCapture={() => setInteractionPaused(true)}
+      onBlurCapture={handleBlur}
+      aria-label={`${section.title} products`}
+    >
+      <div className="mb-4 flex min-h-8 items-center justify-between gap-3 sm:mb-6">
+        <h2 className="text-xl font-bold sm:text-2xl">{section.title}</h2>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {section.type !== "specific_products" && (
+            <Link href={section.categoryFilter ? `/products?category=${encodeURIComponent(section.categoryFilter)}` : "/products"}>
+              <Button variant="ghost" className="h-8 px-2 text-sm font-bold text-primary sm:px-3">
+                See all <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          )}
+          {(canScrollPrev || canScrollNext) && (
+            <div className="flex items-center gap-1" role="group" aria-label="Product carousel controls">
+              <CarouselPrevious
+                aria-label={`Scroll ${section.title} left`}
+                className="static h-7 w-7 translate-y-0 rounded-full border-slate-200 bg-background text-foreground shadow-sm transition-colors hover:bg-primary hover:text-primary-foreground [&_svg]:h-3.5 [&_svg]:w-3.5"
+              />
+              <CarouselNext
+                aria-label={`Scroll ${section.title} right`}
+                className="static h-7 w-7 translate-y-0 rounded-full border-slate-200 bg-background text-foreground shadow-sm transition-colors hover:bg-primary hover:text-primary-foreground [&_svg]:h-3.5 [&_svg]:w-3.5"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      <CarouselContent className="-ml-4">
+        {products.map((product: any) => (
+          <CarouselItem key={product.id} className="pl-4 basis-[58%] min-[480px]:basis-[40%] md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+            <ProductCard product={product} />
+          </CarouselItem>
+        ))}
+      </CarouselContent>
+    </Carousel>
+  );
+};
+
 const HomeSectionsDisplay = () => {
   const { data: sections } = useQuery({
     queryKey: ["/api/home-sections"],
@@ -1459,20 +1338,25 @@ const HomeSectionsDisplay = () => {
   });
 
   const { data: allProducts } = useProducts();
-
   if (!sections) return null;
   if (sections.length === 0) return <FeaturedPosterMarquee />;
 
-  const targetIndices = sections.reduce((indices: number[], section: any, index: number) => {
-    const title = String(section.title || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (title.includes("newarrivals") || title.includes("bestsmartphonesofnovember")) indices.push(index);
-    return indices;
-  }, []);
-  const promoAfterIndex = targetIndices.length > 0 ? Math.max(...targetIndices) : sections.length - 1;
+  const currentMonth = new Intl.DateTimeFormat("en", { month: "long" }).format(new Date());
+  const staleCampaignTitle = /\bmarch\b.*\b(top\s*)?deals\b/i;
+  const maxCuratedSections = 5;
+  const displayedProductIds = new Set<number>();
+  let renderedProductSections = 0;
+  let promoInserted = false;
 
   return (
     <>
-      {sections.map((section: any, index: number) => {
+      {sections.map((section: any) => {
+        if (renderedProductSections >= maxCuratedSections) return null;
+        const isStaleDealsCampaign = staleCampaignTitle.test(String(section.title || ""));
+        // The live deals component below owns deal merchandising and expiry;
+        // skip old/custom deal rows here to avoid showing the same deal twice.
+        if (isStaleDealsCampaign || section.type === "top_deals") return null;
+
         let productsToShow = allProducts || [];
 
         if (section.type === "specific_products") {
@@ -1490,62 +1374,47 @@ const HomeSectionsDisplay = () => {
           productsToShow = productsToShow.slice(0, section.limit || 8);
         }
 
+        // Curate across the whole homepage so the same item does not reappear
+        // in several adjacent admin-managed collections.
+        productsToShow = productsToShow.filter((product: any) => {
+          const id = Number(product.id);
+          return Number.isFinite(id) && !displayedProductIds.has(id);
+        }).slice(0, 8);
+        productsToShow.forEach((product: any) => displayedProductIds.add(Number(product.id)));
+
+        const sectionTitle = String(section.title || "").replace(
+          /\b(January|February|March|April|May|June|July|August|September|October|November|December)\b/gi,
+          currentMonth,
+        );
+
         const sectionContent = productsToShow.length === 0 ? null : (
-          <section className="py-5 sm:py-8 border-b">
+          <section className="py-3 sm:py-8 border-b">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <Carousel className="w-full" opts={{ align: "start", containScroll: "trimSnaps" }}>
-              <div className="mb-4 flex items-center justify-between gap-3 sm:mb-6">
-                <h2 className="text-2xl font-bold">{section.title}</h2>
-                <div className="flex shrink-0 items-center gap-2">
-                  {section.type !== "specific_products" && (
-                    <Link href={section.categoryFilter ? `/products?category=${encodeURIComponent(section.categoryFilter)}` : "/products"}>
-                      <Button variant="ghost" className="text-primary font-bold">
-                        See all <ArrowRight className="ml-2 w-4 h-4" />
-                      </Button>
-                    </Link>
-                  )}
-                  {productsToShow.length > 1 && (
-                    <div className="hidden items-center gap-2 sm:flex">
-                      <CarouselPrevious aria-label={`Scroll ${section.title} left`} className="static h-8 w-8 translate-y-0 rounded-full border-slate-200 bg-background text-foreground shadow-sm hover:bg-primary hover:text-primary-foreground" />
-                      <CarouselNext aria-label={`Scroll ${section.title} right`} className="static h-8 w-8 translate-y-0 rounded-full border-slate-200 bg-background text-foreground shadow-sm hover:bg-primary hover:text-primary-foreground" />
-                    </div>
-                  )}
-                </div>
-              </div>
-                <CarouselContent className="-ml-4">
-                  {productsToShow.map((product: any) => (
-                    <CarouselItem key={product.id} className="pl-4 basis-[58%] min-[480px]:basis-[40%] md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-                      <ProductCard product={product} />
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-              </Carousel>
+              <HomeSectionProductCarousel section={{ ...section, title: sectionTitle }} products={productsToShow} />
             </div>
           </section>
         );
 
+        if (sectionContent) renderedProductSections += 1;
+        const normalizedTitle = String(sectionTitle || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const shouldPlacePromosAfter = normalizedTitle.includes("newarrivals")
+          || normalizedTitle.includes("bestsmartphones");
+        const showPromosHere = !promoInserted && shouldPlacePromosAfter;
+        if (showPromosHere) promoInserted = true;
+
         return (
           <Fragment key={section.id}>
             {sectionContent}
-            {index === promoAfterIndex && <FeaturedPosterMarquee />}
+            {showPromosHere && <FeaturedPosterMarquee />}
           </Fragment>
         );
       })}
+      {!promoInserted && <FeaturedPosterMarquee />}
     </>
   );
 };
 
 export default function Home() {
-  const { data: featuredProducts, isLoading: featuredLoading } = useProducts({ featured: "true" });
-  const { data: dealProducts, isLoading: dealsLoading } = useProducts({ category: "Deals" });
-  const { data: gamingProducts } = useProducts({ category: "Gaming" });
-  const { data: homeProducts } = useProducts({ category: "Home" });
-  const { data: smartphoneProducts } = useProducts({ category: "Smartphones" });
-  const { data: laptopProducts } = useProducts({ category: "Laptops" });
-  const { data: tabletProducts } = useProducts({ category: "Tablets" });
-  const { data: watchProducts } = useProducts({ category: "Smartwatches" });
-  const { data: audioProducts } = useProducts({ category: "Audio" });
-
   const popularCategories = [
     { name: "Smartphones", icon: Smartphone, href: "/shop?category=Smartphones" },
     { name: "Laptops", icon: Laptop, href: "/shop?category=Laptops" },
@@ -1599,8 +1468,8 @@ export default function Home() {
     <>
       <Helmet>
         <title>Dopik Electronics – Best Electronics Shop in Kigali, Rwanda</title>
-        <meta name="description" content="Shop the latest smartphones, laptops, tablets and certified electronics in Kigali Rwanda. Grade A refurbished devices with 12-month warranty. Trusted since 2019." />
-        <meta name="keywords" content="electronics kigali, smartphones rwanda, laptops kigali, iphone kigali, samsung rwanda, dopik electronics, refurbished phones, certified electronics" />
+        <meta name="description" content="Shop smartphones, laptops, tablets and electronics in Kigali, Rwanda. View current prices and availability, then order online or contact Dopik Electronics for local support." />
+        <meta name="keywords" content="electronics kigali, smartphones rwanda, laptops kigali, iphone kigali, samsung rwanda, dopik electronics" />
         <meta property="og:title" content="Dopik Electronics – Best Electronics Shop in Kigali" />
         <meta property="og:url" content="https://dopikelectronics.com/" />
         <meta name="google-site-verification" content="HZMexTGNu2r654lO4ndFbX2gaHqrhkQv1GjPIFmurPo" />
@@ -1615,17 +1484,13 @@ export default function Home() {
 
         <HomeHero />
         <TrustBar />
-        <HomeSectionsDisplay />
         <TopDeals />
-        <MaximizeSavings />
+        <ActiveCouponCodes />
+        <HomeSectionsDisplay />
         <FeaturedSlider />
         <RecommendedProducts />
         <PopularCategories />
-        <CustomerFavorites />
-        <HomeProducts />
-        <GamingPreview />
         <CircularEconomy />
-        <AudioPreview />
 
         <Footer />
       </div>

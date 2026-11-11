@@ -352,7 +352,7 @@ function CheckoutSingle({
             </Button>
           )}
           <p className="text-xs text-muted-foreground">
-            Delivery is <span className="font-bold text-green-500">FREE</span>. Sharing your location is optional; you can still order without it. Our team may contact you to confirm your delivery address.
+            Delivery is currently shown as <span className="font-bold text-green-500">FREE</span> at checkout. Sharing your location is optional; our team may contact you to confirm your address and delivery coverage.
           </p>
         </div>
 
@@ -459,7 +459,7 @@ function CheckoutSingle({
             disabled={orderMutation.isPending || isLoadingProducts || !watchPaymentMethod || (isMomoNetwork(watchPaymentMethod) && !momoPhone)}
             className="w-full py-8 text-xl font-black rounded-2xl shadow-xl shadow-primary/20 hover-elevate active-elevate-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-tighter"
           >
-            {isLoadingProducts ? "Updating prices..." : orderMutation.isPending ? "Processing..." : "Pay Now"}
+            {isLoadingProducts ? "Updating prices..." : orderMutation.isPending ? "Processing..." : watchPaymentMethod === "Cash on Delivery" ? "Place Order" : "Pay Now"}
             <ArrowRight className="ml-2 h-6 w-6" />
           </Button>
           <p className="text-center text-xs text-muted-foreground font-medium">

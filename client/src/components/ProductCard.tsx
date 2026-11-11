@@ -26,7 +26,7 @@ function useProductRating(productId: number) {
   return stats && stats.reviewCount > 0 ? stats : null;
 }
 
-export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardProps) {
+export function ProductCard({ product, hideFeaturedBadge }: ProductCardProps) {
   const rating = useProductRating(product.id);
   const [showQuickView, setShowQuickView] = useState(false);
   const { addToCompare, removeFromCompare, isInCompare } = useCompare();
@@ -39,7 +39,27 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
     return new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF' }).format(price);
   };
 
-  const { discount, hasDiscount, salePrice: dealPrice } = getProductPricing(product);
+  const { discount, hasDiscount, regularPrice, salePrice: dealPrice } = getProductPricing(product);
+  const storageOptions = Array.isArray(product.variations?.storage)
+    ? product.variations.storage.map(({ option }) => option.trim()).filter(Boolean)
+    : [];
+  const storageSpec = Object.entries(product.specs ?? {}).find(([key, value]) =>
+    /^(storage|capacity)$/i.test(key.trim()) && typeof value === "string" && value.trim(),
+  )?.[1]?.trim();
+  const storageSummary = storageOptions.length
+    ? storageOptions.slice(0, 2).join(" · ") + (storageOptions.length > 2 ? " + more" : "")
+    : storageSpec;
+  const condition = Object.entries(product.specs ?? {}).find(([key, value]) =>
+    /^condition$/i.test(key.trim()) && typeof value === "string" && value.trim(),
+  )?.[1]?.trim();
+  const stockStatus = product.stockStatus?.toLowerCase();
+  const stockLabel = stockStatus === "in_stock"
+    ? "In stock"
+    : stockStatus === "out_of_stock"
+      ? "Out of stock"
+      : stockStatus === "pre_order"
+        ? "Pre-order"
+        : undefined;
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -89,16 +109,22 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
               "@type": "Offer",
               "priceCurrency": "RWF",
               "price": dealPrice,
-              "availability": product.stockStatus === 'in_stock' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
+              "availability": stockStatus === "in_stock"
+                ? "https://schema.org/InStock"
+                : stockStatus === "pre_order"
+                  ? "https://schema.org/PreOrder"
+                  : stockStatus === "out_of_stock"
+                    ? "https://schema.org/OutOfStock"
+                    : undefined
             }
           })}
         </script>
 
         {/* Badges - left side */}
         <div className="absolute left-1.5 top-1.5 z-10 flex flex-col gap-0.5">
-          {isDeal && (
+          {hasDiscount && (
             <div className="rounded bg-primary px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-primary-foreground shadow-sm">
-              Sale
+              {discount}% off
             </div>
           )}
           {product.stockStatus === 'out_of_stock' && (
@@ -106,7 +132,7 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
               Sold Out
             </div>
           )}
-          {product.isFeatured && product.stockStatus !== 'out_of_stock' && !hideFeaturedBadge && (
+          {product.isFeatured && stockStatus !== 'out_of_stock' && !hideFeaturedBadge && (
             <div className="rounded bg-primary/15 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-primary border border-primary/20">
               Featured
             </div>
@@ -118,10 +144,10 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowQuickView(true); }}
             data-testid={`button-quickview-${product.id}`}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-white/90 dark:bg-background/90 backdrop-blur-md text-foreground shadow ring-1 ring-black/5 hover:bg-primary hover:text-primary-foreground transition-all active:scale-90"
+            className="flex h-10 w-10 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-white/90 dark:bg-background/90 backdrop-blur-md text-foreground shadow ring-1 ring-black/5 hover:bg-primary hover:text-primary-foreground transition-all active:scale-90"
             aria-label="Quick view"
           >
-            <Eye className="h-3 w-3" />
+            <Eye className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           </button>
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); inCompare ? removeFromCompare(product.id) : addToCompare(product); }}
@@ -138,14 +164,14 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleWishlist(product); }}
             data-testid={`button-wishlist-${product.id}`}
-            className={`flex h-6 w-6 items-center justify-center rounded-full backdrop-blur-md shadow ring-1 transition-all active:scale-90 ${
+            className={`flex h-10 w-10 sm:h-7 sm:w-7 items-center justify-center rounded-full backdrop-blur-md shadow ring-1 transition-all active:scale-90 ${
               inWishlist
                 ? "bg-red-500 text-white ring-red-500/20"
                 : "bg-white/90 dark:bg-background/90 text-foreground ring-black/5 hover:bg-red-500/10"
             }`}
             aria-label="Wishlist"
           >
-            <Heart className={`h-3 w-3 ${inWishlist ? "fill-white" : ""}`} />
+            <Heart className={`h-4 w-4 sm:h-3.5 sm:w-3.5 ${inWishlist ? "fill-white" : ""}`} />
           </button>
         </div>
 
@@ -170,42 +196,59 @@ export function ProductCard({ product, isDeal, hideFeaturedBadge }: ProductCardP
         <div className="flex flex-col px-2 pt-1.5 pb-2 flex-1">
 
           {/* Rating row — always reserves space */}
-          <div className="flex items-center gap-0.5 mb-1 min-h-[14px]">
+          <div className="flex items-center gap-0.5 mb-1 min-h-[14px]" aria-label={rating ? `${rating.averageRating} out of 5, ${rating.reviewCount} reviews` : undefined}>
             {rating ? (
               <>
                 <Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400 shrink-0" />
-                <span className="text-[9px] font-bold text-muted-foreground">{rating.averageRating}</span>
+                <span className="text-[9px] font-bold text-foreground">{Number(rating.averageRating).toFixed(1)}</span>
                 <span className="text-[9px] text-muted-foreground/50">({rating.reviewCount})</span>
               </>
-            ) : (
-              <span className="text-[9px] text-muted-foreground/30">No reviews yet</span>
             )}
           </div>
 
           {/* Product name — always exactly 2 lines */}
           <Link href={`/product/${product.slug}`}>
-            <h3 className="line-clamp-2 text-[11px] sm:text-[12px] font-semibold leading-[1.3] text-foreground hover:text-primary transition-colors" style={{ minHeight: "2.6em" }}>
+            <h3 className="line-clamp-2 text-[13px] sm:text-[12px] font-semibold leading-[1.3] text-foreground hover:text-primary transition-colors" style={{ minHeight: "2.6em" }}>
               {product.name}
             </h3>
           </Link>
 
-          {/* Price — compact, adapts to card width */}
+          {(storageSummary || condition || stockLabel) && (
+            <div className="mt-1 flex min-h-4 flex-wrap items-center gap-1 text-[10px] sm:text-[9px] leading-tight text-muted-foreground">
+              {storageSummary && <span className="truncate">{storageSummary}</span>}
+              {storageSummary && condition && <span aria-hidden="true">·</span>}
+              {condition && <span className="truncate">{condition}</span>}
+              {(storageSummary || condition) && stockLabel && <span aria-hidden="true">·</span>}
+              {stockLabel && (
+                <span className={stockStatus === "out_of_stock" ? "text-red-600" : stockStatus === "in_stock" ? "text-emerald-600" : "text-amber-600"}>
+                  {stockLabel}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Current price is the primary buying signal; only show a reference price for a valid active discount. */}
           <div className="mt-1.5 min-w-0">
-            {hasDiscount && (
-              <span className="block text-[9px] font-medium text-muted-foreground/60 line-through truncate">
-                {formatPrice(product.price)}
-              </span>
-            )}
-            <div className="text-[11px] sm:text-[13px] font-black tracking-tight text-gray-900 dark:text-white leading-tight truncate">
+            <div className="text-[15px] sm:text-[15px] font-extrabold tracking-tight text-primary leading-tight truncate">
               {formatPrice(dealPrice)}
             </div>
+            {hasDiscount && regularPrice > dealPrice && (
+              <div className="mt-0.5 flex min-w-0 items-center gap-1">
+                <span className="text-[9px] font-medium text-muted-foreground line-through truncate">
+                  {formatPrice(regularPrice)}
+                </span>
+                <span className="shrink-0 rounded-full bg-emerald-50 px-1 py-0.5 text-[8px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  Save {discount}%
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Buy button — always at bottom, always shows icon + text */}
           <button
             type="button"
             onClick={handleBuyNow}
-            className="mt-2 flex items-center justify-center gap-1.5 w-full rounded-lg border border-primary/30 bg-primary/8 hover:bg-primary text-primary hover:text-primary-foreground py-1.5 text-[10px] sm:text-[11px] font-bold transition-all active:scale-95"
+            className="mt-2 flex min-h-10 items-center justify-center gap-1.5 w-full rounded-lg border border-primary/30 bg-primary/8 hover:bg-primary text-primary hover:text-primary-foreground py-2 text-xs sm:min-h-8 sm:py-1.5 sm:text-[11px] font-bold transition-all active:scale-95"
             data-testid={`button-cart-${product.id}`}
             title="Buy Now"
           >
